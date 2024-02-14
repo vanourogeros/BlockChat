@@ -1,5 +1,10 @@
 import datetime
 import time
+from dotenv import load_dotenv
+import os
+
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+CAPACITY = int(os.getenv("CAPACITY"))
 
 class Block:
 
