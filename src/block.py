@@ -48,8 +48,8 @@ class Block:
         if self.validator == 0:
             return True       
         
-        # Fetch the last block in the blockchain
-        previous_block = blockchain.chain[-1]
+        # Fetch the previous block in the blockchain
+        previous_block = blockchain.chain[self.index - 1]
         # Verify Hashes
         if self.previous_hash != previous_block.current_hash:
             print(f"(pid={os.getpid}) [INVALID BLOCK]: Previous hash field is not equal to the hash field of the last block in the blockchain.")
