@@ -37,11 +37,11 @@ class Blockchain:
         self.chain.append(block)
 
     def validate_chain(self):
-        curr_index = 1 #take the first block after genesis
+        curr_index = 0 #genesis block is handled in validate_block
 
         while curr_index < len(self.chain):
             curr_block = self.chain[curr_index]
-            if not curr_block.validate_block(): # I suppose validate_block() is boolean
+            if not curr_block.validate_block(self):
                 return False
             curr_index += 1
         
