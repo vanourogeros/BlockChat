@@ -17,13 +17,13 @@ CAPACITY = int(os.getenv("CAPACITY"))
 class Block:
 
     def __init__(self, index: int, timestamp: datetime, transactions: list, validator: int, 
-                 previous_hash: SHA256Hash, current_hash: SHA256Hash) -> None:
+                 previous_hash: SHA256Hash) -> None:
         self.index = index
         self.timestamp = timestamp
         self.transactions = transactions
         self.validator = validator
         self.previous_hash = previous_hash
-        self.current_hash = current_hash
+        self.current_hash = self.__hash_block()
 
 
     def serialize(self) -> str:
@@ -33,7 +33,6 @@ class Block:
             "transactions": self.transactions,
             "validator": self.validator,
             "previous_hash": self.previous_hash,
-            "current_hash": self.current_hash
         }
         return json.dumps(block)
     
