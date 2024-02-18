@@ -1,7 +1,7 @@
 import time
-from block import Block
-from transaction import Transaction
-from blockchain import Blockchain
+from src.block import Block
+from src.transaction import Transaction
+from src.blockchain import Blockchain
 import requests
 
 from Crypto.PublicKey import RSA
@@ -22,7 +22,7 @@ class Wallet:
         self.bootstrap = bootstrap
         self.balance = 0
         self.stake = 0
-        self.public_key, self.private_key = self.generate_wallet()
+        self.private_key, self.public_key = self.generate_wallet()
 
         """
         State will contain a list of all the nodes' 

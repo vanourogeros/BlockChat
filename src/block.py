@@ -6,7 +6,8 @@ import os
 from Crypto.Hash.SHA256 import SHA256Hash
 from Crypto.Hash import SHA256
 
-from blockchain import Blockchain
+from src.blockchain import Blockchain
+from src.transaction import Transaction
 
 from dotenv import load_dotenv
 
@@ -30,7 +31,7 @@ class Block:
         block = {
             "index": self.index,
             "timestamp": self.timestamp,
-            "transactions": self.transactions,
+            "transactions": list(map(Transaction.serialize, self.transactions)),
             "validator": self.validator,
             "previous_hash": self.previous_hash,
         }

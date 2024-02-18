@@ -1,5 +1,5 @@
 from flask import Flask, jsonify
-from wallet import Wallet
+from src.wallet import Wallet
 
 import os
 import sys
