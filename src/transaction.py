@@ -1,5 +1,4 @@
 import json
-
 from Crypto.Hash.SHA256 import SHA256Hash
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.Hash import SHA256
