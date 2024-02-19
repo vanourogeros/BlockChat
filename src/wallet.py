@@ -1,3 +1,4 @@
+import json
 import time
 
 from Crypto.Hash.SHA256 import SHA256Hash
@@ -15,6 +16,8 @@ import os
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 CAPACITY = int(os.getenv("CAPACITY"))
 TOTAL_NODES = int(os.getenv("TOTAL_NODES"))
+BOOTSTRAP_IP = os.getenv("BOOTSTRAP_IP")  # 127.0.0.1
+BOOTSTRAP_PORT = int(os.getenv("BOOTSTRAP_PORT"))  # 5000
 
 
 class Wallet:
@@ -30,7 +33,7 @@ class Wallet:
 
         """
         State will contain a list of all the nodes' 
-        {ip_address:port, balance, stake} dictionaries
+        {ip_address:port, public_key, balance, stake} dictionaries
         """
         self.blockchain_state = []
 
@@ -41,8 +44,25 @@ class Wallet:
         self.blockchain = Blockchain()
 
         if bootstrap:
-            self.blockchain_state.append((self.address, 0, 0))
+            self.blockchain_state.append({"address":self.address,
+                                          "public_key":self.public_key,
+                                          "balance": 0, 
+                                          "stake":0})
             self.create_genesis_block()
+        else:
+            # Communicate with the bootstrap node to register in the blockchain
+            data = {
+                "address": self.address,
+                "public_key": self.public_key
+            }
+            payload = json.dumps(data)
+            print(payload)
+            response = requests.post(f"http://{BOOTSTRAP_IP}:{BOOTSTRAP_PORT}/api/bootstrap/register_node", 
+                                     data=payload, 
+                                     headers={'Content-Type': 'application/json'})
+            if response.status_code == 200:
+                print("wraios")
+            print(response)
 
     def create_genesis_block(self):
         # we call the create transaction function (the same as init of transaction)
@@ -80,15 +100,26 @@ class Wallet:
             return self.blockchain_state
         else:
             # TODO: This is not right lmao
-            response = requests.post(f"http://{self.ip_address}:{self.port}/api/get_network_state")
+            data = {
+                "address": self.address,
+                "public_key": self.public_key
+            }
+            payload = json.dumps(data)
+            print(payload)
+            response = requests.post(f"http://{self.ip_address}:{self.port}/api/get_network_state", 
+                                     data=payload, 
+                                     headers={'Content-Type': 'application/json'})
             if response.status_code == 200:
                 return response.json()["data"]
             else:
                 return []
 
-    def register_node(self, ip_address: str, port: int) -> None:
-        self.blockchain_state.append((ip_address, port, 0))
-        self.stakes.append(0)
+    def register_node(self, address: str, public_key: str) -> None:
+        self.blockchain_state.append({"address":address,
+                                      "public_key":public_key,
+                                      "balance": 0, 
+                                      "stake":0})
+        return
 
     def create_transaction(self, sender_address: str, receiver_address: str,
                            type_of_transaction: str, amount: float, message: str, nonce: int
