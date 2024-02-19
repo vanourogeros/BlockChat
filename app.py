@@ -24,9 +24,9 @@ wallet = Wallet(ip_address, port, bootstrap)
 def get_balance():
     return jsonify({"balance": wallet.balance})
 
-@app.route('/api/get_transactions_last_block')
+@app.route('/api/get_last_block')
 def get_transactions_last_block():
-    return jsonify({"transactions": wallet.blockchain.chain[-1].serialize()})
+    return jsonify(wallet.blockchain.chain[-1].serialize())
 
 
 if __name__ == '__main__':
