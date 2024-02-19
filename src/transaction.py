@@ -24,6 +24,7 @@ class Transaction:
         return
 
     def serialize(self) -> str:
+        print(self)
         transaction = {
             "sender_address": self.sender_address,
             "receiver_address": self.receiver_address,

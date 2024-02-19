@@ -1,4 +1,5 @@
-from src.block import Block
+#from src.block import Block
+# If we import block a circular import will occur.
 
 
 class Blockchain:
@@ -16,7 +17,7 @@ class Blockchain:
             print(tran)
         return
 
-    def add_block(self, block: Block) -> None:  # thn eftiaxa na yparxxei
+    def add_block(self, block) -> None:  # thn eftiaxa na yparxxei
         self.chain.append(block)
 
     def validate_chain(self) -> bool:

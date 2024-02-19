@@ -29,9 +29,9 @@ class Block:
         block = {
             "index": self.index,
             "timestamp": self.timestamp,
-            "transactions": list(map(Transaction.serialize, self.transactions)),
+            "transactions": list(map(lambda transaction: transaction.serialize(), self.transactions)),
             "validator": self.validator,
-            "previous_hash": self.previous_hash,
+            "previous_hash": str(self.previous_hash.digest()),
         }
         return json.dumps(block)
 
