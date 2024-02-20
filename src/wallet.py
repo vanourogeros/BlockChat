@@ -1,8 +1,6 @@
 import json
 import time
 
-from Crypto.Hash.SHA256 import SHA256Hash
-
 from src.block import Block
 from src.transaction import Transaction
 from src.blockchain import Blockchain
@@ -12,6 +10,7 @@ from Crypto.PublicKey import RSA
 
 from dotenv import load_dotenv
 import os
+import sys
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 CAPACITY = int(os.getenv("CAPACITY"))
@@ -38,16 +37,16 @@ class Wallet:
         self.blockchain_state = []
 
         self.transactions_pending = []
-
-        # TODO: An einai bootstrap dhmiourgei neo blockchain. An oxi, epikoinwnei me bootstrap ...(teleutaia paragrafos
-        # TODO: selida 2).
         self.blockchain = Blockchain()
 
         if bootstrap:
-            self.blockchain_state.append({"address":self.address,
-                                          "public_key":self.public_key,
-                                          "balance": 0, 
-                                          "stake":0})
+            self.id = 0
+            self.given_id = 0
+            self.blockchain_state.append({"address": self.address,
+                                          "public_key": self.public_key,
+                                          "id": self.id,
+                                          "balance": 0,
+                                          "stake": 0})
             self.create_genesis_block()
         else:
             # Communicate with the bootstrap node to register in the blockchain
@@ -56,13 +55,16 @@ class Wallet:
                 "public_key": self.public_key
             }
             payload = json.dumps(data)
-            print(payload)
-            response = requests.post(f"http://{BOOTSTRAP_IP}:{BOOTSTRAP_PORT}/api/bootstrap/register_node", 
-                                     data=payload, 
+            response = requests.post(f"http://{BOOTSTRAP_IP}:{BOOTSTRAP_PORT}/api/bootstrap/register_node",
+                                     data=payload,
                                      headers={'Content-Type': 'application/json'})
-            if response.status_code == 200:
-                print("wraios")
-            print(response)
+            if response.status_code != 200:
+                print("Error:", response)
+                sys.exit(1)
+
+            print("Bootstrap is notified of new node.")
+            self.id = response.json()['id']
+            print(f"New node ID is {self.id}.")
 
     def create_genesis_block(self):
         # we call the create transaction function (the same as init of transaction)
@@ -75,7 +77,7 @@ class Wallet:
         # We don't verify the transaction because it's the genesis block, so we process it directly
         self.process_transaction(tran)
         genesis_block = Block(index=0, timestamp=time.time(),
-                              transactions=[tran], validator=0, previous_hash=SHA256Hash(b'\x01'))
+                              transactions=[tran], validator=0, previous_hash='1')
         self.blockchain.add_block(genesis_block)
 
     @staticmethod
@@ -106,8 +108,8 @@ class Wallet:
             }
             payload = json.dumps(data)
             print(payload)
-            response = requests.post(f"http://{self.ip_address}:{self.port}/api/get_network_state", 
-                                     data=payload, 
+            response = requests.post(f"http://{self.ip_address}:{self.port}/api/get_network_state",
+                                     data=payload,
                                      headers={'Content-Type': 'application/json'})
             if response.status_code == 200:
                 return response.json()["data"]
@@ -115,10 +117,11 @@ class Wallet:
                 return []
 
     def register_node(self, address: str, public_key: str) -> None:
-        self.blockchain_state.append({"address":address,
-                                      "public_key":public_key,
-                                      "balance": 0, 
-                                      "stake":0})
+        self.blockchain_state.append({"address": address,
+                                      "public_key": public_key,
+                                      "id": self.given_id,
+                                      "balance": 0,
+                                      "stake": 0})
         return
 
     def create_transaction(self, sender_address: str, receiver_address: str,
