@@ -8,7 +8,7 @@ from Crypto.PublicKey import RSA
 class Transaction:
 
     def __init__(self, sender_address: str, receiver_address: str, type_of_transaction: str, amount: float,
-                 message: str, nonce: int) -> None:
+                 message: str, nonce: int, transaction_id: str = None, signature: str = None) -> None:
         if type_of_transaction not in ["coins", "message"]:
             raise ValueError("Invalid argument type_of_transaction. It should be either 'coins' or 'message'.")
 
@@ -18,13 +18,18 @@ class Transaction:
         self.amount = amount
         self.message = message
         self.nonce = nonce
-        self.transaction_id = self.__hash_transaction().hexdigest()
-        self.signature = ''
+        if transaction_id is None:
+            self.transaction_id = self.hash_transaction().hexdigest()
+        else:
+            self.transaction_id = transaction_id
+        if signature is None:
+            self.signature = 'empty'
+        else:
+            self.signature = signature
 
         return
 
-    def serialize(self) -> str:
-        print(self)
+    def stringify(self) -> str:
         transaction = {
             "sender_address": self.sender_address,
             "receiver_address": self.receiver_address,
@@ -36,23 +41,43 @@ class Transaction:
 
         return json.dumps(transaction)
 
-    def __hash_transaction(self) -> SHA256Hash:
-        serialized_transaction = self.serialize().encode('utf-8')
+    def hash_transaction(self) -> SHA256Hash:
+        serialized_transaction = self.stringify().encode('utf-8')
         sha256_hash_object = SHA256.new(serialized_transaction)
 
         return sha256_hash_object
 
     def sign_transaction(self, private_key: str) -> None:
-        hash_obj = self.__hash_transaction()
+        hash_obj = self.hash_transaction()
         private_key_obj = RSA.import_key(private_key)
         signer = PKCS1_v1_5.new(private_key_obj)
-        signature = signer.sign(hash_obj)
+        signature = signer.sign(hash_obj).hex()
         self.signature = signature
 
         return
 
     def verify_signature(self, public_key: str) -> bool:
-        hash_obj = self.__hash_transaction()
+        hash_obj = self.hash_transaction()
         public_key_obj = RSA.import_key(public_key)
         verifier = PKCS1_v1_5.new(public_key_obj)
         return verifier.verify(hash_obj, self.signature.encode('utf-8'))
+
+    def serialize(self) -> str:
+        transaction = {
+            "sender_address": self.sender_address,
+            "receiver_address": self.receiver_address,
+            "type_of_transaction": self.type_of_transaction,
+            "amount": self.amount,
+            "message": self.message,
+            "nonce": self.nonce,
+            "transaction_id": self.transaction_id,
+            "signature": self.signature
+        }
+
+        return json.dumps(transaction)
+
+
+def deserialize_trans(data: str) -> Transaction:
+    trans = json.loads(data)
+    return Transaction(trans["sender_address"], trans["receiver_address"], trans["type_of_transaction"],
+                       trans["amount"], trans["message"], trans["nonce"], trans["transaction_id"], trans["signature"])

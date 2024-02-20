@@ -17,26 +17,26 @@ CAPACITY = int(os.getenv("CAPACITY"))
 class Block:
 
     def __init__(self, index: int, timestamp: datetime, transactions: list, validator: int,
-                 previous_hash: SHA256Hash) -> None:
+                 previous_hash: str) -> None:
         self.index = index
         self.timestamp = timestamp
         self.transactions = transactions
         self.validator = validator
         self.previous_hash = previous_hash
-        self.current_hash = self.hash_block()
+        self.current_hash = self.hash_block().hexdigest()
 
-    def serialize(self) -> str:
+    def stringify(self) -> str:
         block = {
             "index": self.index,
             "timestamp": self.timestamp,
             "transactions": list(map(lambda transaction: transaction.serialize(), self.transactions)),
             "validator": self.validator,
-            "previous_hash": str(self.previous_hash.digest()),
+            "previous_hash": self.previous_hash
         }
         return json.dumps(block)
 
     def hash_block(self) -> SHA256Hash:
-        serialized_block = self.serialize().encode('utf-8')
+        serialized_block = self.stringify().encode('utf-8')
         sha256_hash_object = SHA256.new(serialized_block)
         return sha256_hash_object
 
@@ -54,7 +54,7 @@ class Block:
                 f"(pid={os.getpid}) [INVALID BLOCK]: Previous hash field is not equal to the hash field of the last "
                 f"block in the blockchain.")
             return False
-        if self.current_hash != self.hash_block():
+        if self.current_hash != self.hash_block().hexdigest():
             print(f"(pid={os.getpid}) [INVALID BLOCK]: Current hash field is not equal to the hash of the block.")
             return False
         return True
@@ -62,3 +62,14 @@ class Block:
     def mint_block(self):
         # tha mpei kan edw? h sto wallet?
         pass
+
+    def serialize(self) -> str:
+        block = {
+            "index": self.index,
+            "timestamp": self.timestamp,
+            "transactions": list(map(lambda transaction: transaction.serialize(), self.transactions)),
+            "validator": self.validator,
+            "previous_hash": self.previous_hash,
+            "current_hash": self.current_hash
+        }
+        return json.dumps(block)
