@@ -28,13 +28,14 @@ class Wallet:
         self.bootstrap = bootstrap
         self.balance = 0
         self.stake = 0
+        self.nonce = 0 # counter for the number of transactions
         self.private_key, self.public_key = self.generate_wallet()
 
         """
-        State will contain a list of all the nodes' 
-        {ip_address:port, public_key, balance, stake} dictionaries
+        State will contain a dictionary of all the nodes:
+        {address: {public_key, balance, stake} dictionaries}}
         """
-        self.blockchain_state = []
+        self.blockchain_state = {}
 
         self.transactions_pending = []
         self.blockchain = Blockchain()
@@ -42,11 +43,11 @@ class Wallet:
         if bootstrap:
             self.id = 0
             self.given_id = 0
-            self.blockchain_state.append({"address": self.address,
-                                          "public_key": self.public_key,
-                                          "id": self.id,
-                                          "balance": 0,
-                                          "stake": 0})
+            self.blockchain_state[self.address] = {"public_key": self.public_key,
+                                                   "id": self.id,
+                                                   "balance": 0,
+                                                   "stake": 0}
+                                          
             self.create_genesis_block()
         else:
             # Communicate with the bootstrap node to register in the blockchain
@@ -73,7 +74,7 @@ class Wallet:
                                        type_of_transaction="coins",
                                        amount=1000 * TOTAL_NODES,
                                        message="Genesis block",
-                                       nonce=0)
+                                       nonce=self.nonce)
         # We don't verify the transaction because it's the genesis block, so we process it directly
         self.process_transaction(tran)
         genesis_block = Block(index=0, timestamp=time.time(),
@@ -95,13 +96,18 @@ class Wallet:
             elif transaction.sender_address == self.address:
                 self.balance -= transaction.amount
         self.add_transaction(transaction)
+
+        # Update the blockchain state balance for the sender and receiver
+        if transaction.sender_address != "0":
+            self.blockchain_state[transaction.sender_address]["balance"] -= transaction.amount
+        if transaction.receiver_address != "0":
+            self.blockchain_state[transaction.receiver_address]["balance"] += transaction.amount
         return
 
     def get_network_state(self):
         if self.bootstrap:
             return self.blockchain_state
         else:
-            # TODO: This is not right lmao
             data = {
                 "address": self.address,
                 "public_key": self.public_key
@@ -117,19 +123,45 @@ class Wallet:
                 return []
 
     def register_node(self, address: str, public_key: str) -> None:
-        self.blockchain_state.append({"address": address,
-                                      "public_key": public_key,
-                                      "id": self.given_id,
-                                      "balance": 0,
-                                      "stake": 0})
+        self.blockchain_state[address] = {"public_key": public_key,
+                                                 "id": self.given_id,
+                                                 "balance": 0,
+                                                 "stake": 0}
+        
         return
 
     def create_transaction(self, sender_address: str, receiver_address: str,
                            type_of_transaction: str, amount: float, message: str, nonce: int
                            ) -> Transaction:
         transaction = Transaction(sender_address, receiver_address, type_of_transaction, amount, message, nonce)
-        transaction.sign_transaction(self.private_key)
         return transaction
+
+    def broadcast_transaction(self, transaction: Transaction) -> None:
+        # Increment the nonce of the wallet to keep track of the number of transactions
+        # and prevent replay attacks/double spending
+        self.nonce += 1
+        transaction.sign_transaction(self.private_key)
+
+        data = {
+            "transaction": transaction.serialize()
+        }
+        payload = json.dumps(data)
+        for node in self.blockchain_state.keys():
+            if node == self.address:
+                continue
+            node_ip = node.split(":")[0]
+            node_port = node.split(":")[1]
+            response = requests.post(f"http://{node_ip}:{node_port}/api/transaction",
+                                    data=payload,
+                                    headers={'Content-Type': 'application/json'})
+            if response.status_code != 200:
+                print("Error:", response)
+                break
+        if response.status_code == 200:
+            # If the transaction was broadcasted successfully, add it to the pending transactions list and process it
+            self.process_transaction(transaction)
+            #self.add_transaction(transaction)
+        return response
 
     def add_transaction(self, transaction: Transaction) -> None:
         self.transactions_pending.append(transaction)

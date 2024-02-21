@@ -60,7 +60,7 @@ class Transaction:
         hash_obj = self.hash_transaction()
         public_key_obj = RSA.import_key(public_key)
         verifier = PKCS1_v1_5.new(public_key_obj)
-        return verifier.verify(hash_obj, self.signature.encode('utf-8'))
+        return verifier.verify(hash_obj, bytes.fromhex(self.signature))
 
     def serialize(self) -> str:
         transaction = {
