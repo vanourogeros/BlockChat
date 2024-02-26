@@ -37,7 +37,7 @@ def broadcast_network_blockchain():
 
     for node in wallet.blockchain_state.keys():
         if node == wallet.address:
-            continue # We don't want to send the blockchain to the bootstrap (ourselves)
+            continue  # We don't want to send the blockchain to the bootstrap (ourselves)
 
         node_ip = node.split(":")[0]
         node_port = node.split(":")[1]
@@ -62,16 +62,18 @@ def broadcast_network_blockchain():
     print("Will now give 1000 coins to everyone.")
     give_coins_to_everyone()
 
+
 def give_coins_to_everyone():
     for node in wallet.blockchain_state.keys():
         if node == wallet.address:
             continue
         node_ip = node.split(":")[0]
         node_port = node.split(":")[1]
-        transaction = Transaction(wallet.address, node, "coins", 1000, None, wallet.nonce)
+        transaction = Transaction(wallet.address, node, "coins", 1000, "", wallet.nonce)
         wallet.broadcast_transaction(transaction)
 
     print("All nodes have been given 1000 coins.")
+
 
 @app.route('/api/get_balance')
 def get_balance():
@@ -87,6 +89,7 @@ def get_last_block():
 def get_network_state():
     return jsonify(wallet.blockchain_state), 200
 
+
 @app.route('/api/transaction', methods=['POST'])
 def transaction():
     data = request.json
@@ -94,17 +97,20 @@ def transaction():
         return jsonify({"error": "No JSON data provided"}), 400
 
     transaction = deserialize_trans(data['transaction'])
-    wallet.create_transaction(transaction.sender_address, transaction.receiver_address, 
-                              transaction.type_of_transaction, transaction.amount, 
-                              transaction.message, transaction.nonce)
-    
+
     # Verify the signature of the transaction
     if not transaction.verify_signature(wallet.blockchain_state[transaction.sender_address]["public_key"]):
         print("Invalid signature")
         return jsonify({"error": "Invalid signature"}), 400
 
+    # Verify transaction balance
+    if not transaction.verify_balance(wallet.blockchain_state[transaction.sender_address]["balance"]):
+        print("Invalid balance")
+        return jsonify({"error": "Invalid balance"}), 400
+
     wallet.process_transaction(transaction)
     return jsonify({"message": "Transaction processed successfully"}), 200
+
 
 @app.route('/api/receive_block', methods=['POST'])
 def receive_block():
@@ -152,7 +158,6 @@ if bootstrap:
 if not bootstrap:
     @app.route('/api/regular/receive_state', methods=['POST'])
     def receive_state():
-        print("will ! Received state")
         data = request.get_json()
         if data is None:
             return jsonify({"error": "No JSON data provided"}), 400

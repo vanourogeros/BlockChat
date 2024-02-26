@@ -28,7 +28,7 @@ class Wallet:
         self.bootstrap = bootstrap
         self.balance = 0
         self.stake = 0
-        self.nonce = 0 # counter for the number of transactions
+        self.nonce = 0  # counter for the number of transactions
         self.private_key, self.public_key = self.generate_wallet()
 
         """
@@ -47,7 +47,7 @@ class Wallet:
                                                    "id": self.id,
                                                    "balance": 0,
                                                    "stake": 0}
-                                          
+
             self.create_genesis_block()
         else:
             # Communicate with the bootstrap node to register in the blockchain
@@ -124,13 +124,14 @@ class Wallet:
 
     def register_node(self, address: str, public_key: str) -> None:
         self.blockchain_state[address] = {"public_key": public_key,
-                                                 "id": self.given_id,
-                                                 "balance": 0,
-                                                 "stake": 0}
-        
+                                          "id": self.given_id,
+                                          "balance": 0,
+                                          "stake": 0}
+
         return
 
-    def create_transaction(self, sender_address: str, receiver_address: str,
+    @staticmethod
+    def create_transaction(sender_address: str, receiver_address: str,
                            type_of_transaction: str, amount: float, message: str, nonce: int
                            ) -> Transaction:
         transaction = Transaction(sender_address, receiver_address, type_of_transaction, amount, message, nonce)
@@ -146,22 +147,22 @@ class Wallet:
             "transaction": transaction.serialize()
         }
         payload = json.dumps(data)
+        response = None
         for node in self.blockchain_state.keys():
             if node == self.address:
                 continue
             node_ip = node.split(":")[0]
             node_port = node.split(":")[1]
             response = requests.post(f"http://{node_ip}:{node_port}/api/transaction",
-                                    data=payload,
-                                    headers={'Content-Type': 'application/json'})
+                                     data=payload,
+                                     headers={'Content-Type': 'application/json'})
             if response.status_code != 200:
                 print("Error:", response)
                 break
         if response.status_code == 200:
             # If the transaction was broadcasted successfully, add it to the pending transactions list and process it
             self.process_transaction(transaction)
-            #self.add_transaction(transaction)
-        return response
+            self.add_transaction(transaction)
 
     def add_transaction(self, transaction: Transaction) -> None:
         self.transactions_pending.append(transaction)
