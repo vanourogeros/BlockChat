@@ -67,8 +67,6 @@ def give_coins_to_everyone():
     for node in wallet.blockchain_state.keys():
         if node == wallet.address:
             continue
-        node_ip = node.split(":")[0]
-        node_port = node.split(":")[1]
         transaction = Transaction(wallet.address, node, "coins", 1000, "", wallet.nonce)
         wallet.broadcast_transaction(transaction)
 
@@ -104,7 +102,8 @@ def transaction():
         return jsonify({"error": "Invalid signature"}), 400
 
     # Verify transaction balance
-    if not transaction.verify_balance(wallet.blockchain_state[transaction.sender_address]["balance"]):
+    if not transaction.verify_balance(wallet.blockchain_state[transaction.sender_address]["balance"],
+                                      wallet.blockchain_state[transaction.sender_address]["stake"]):
         print("Invalid balance")
         return jsonify({"error": "Invalid balance"}), 400
 

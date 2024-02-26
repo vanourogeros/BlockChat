@@ -62,8 +62,8 @@ class Transaction:
         verifier = PKCS1_v1_5.new(public_key_obj)
         return verifier.verify(hash_obj, bytes.fromhex(self.signature))
 
-    def verify_balance(self, sender_balance: int) -> bool:
-        return self.amount <= sender_balance
+    def verify_balance(self, sender_balance: int, stake: int) -> bool:
+        return self.amount <= sender_balance - stake
 
     def serialize(self) -> str:
         transaction = {
