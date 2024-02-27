@@ -111,6 +111,16 @@ def transaction():
     wallet.process_transaction(transaction)
     return jsonify({"message": "Transaction processed successfully"}), 200
 
+@app.route('/api/stake_amount', methods=['POST', 'GET'])
+def stake_amount():
+    amount = int(request.args.get('amount'))
+    if amount is None:
+        return jsonify({"error": "Missing parameter(s)"}), 400
+
+    result = wallet.stake_amount(amount)
+    if not result:
+        return jsonify({"error": "Insufficient balance"}), 400
+    return jsonify({"message": "Stake successful"}), 200
 
 @app.route('/api/receive_block', methods=['POST'])
 def receive_block():
@@ -131,6 +141,23 @@ def receive_block():
 
     return jsonify({"message": "Block received successfully"}), 200
 
+
+@app.route('/api/my_transaction', methods=['GET'])
+def my_transaction():
+    """
+    Send some coins to the bootstrap node
+    """
+    receiver_address = '127.0.0.1:5000'
+    amount = int(request.args.get('amount'))
+    message = None
+
+    if receiver_address is None or amount is None:
+        return jsonify({"error": "Missing parameter(s)"}), 400
+
+    transaction = wallet.create_transaction(wallet.address, receiver_address, "coins", amount, message, wallet.nonce)
+    wallet.broadcast_transaction(transaction)
+
+    return jsonify({"message": "Transaction broadcasted successfully"}), 200
 
 if bootstrap:
     broadcast_thread = threading.Thread(target=broadcast_network_blockchain).start()

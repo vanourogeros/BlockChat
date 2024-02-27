@@ -102,6 +102,10 @@ class Wallet:
             self.blockchain_state[transaction.sender_address]["balance"] -= transaction.amount
         if transaction.receiver_address != "0":
             self.blockchain_state[transaction.receiver_address]["balance"] += transaction.amount
+        
+        # If the transaction is a stake (receiver address is '0'), update the blockchain state stake for the sender
+        if transaction.receiver_address == "0":
+            self.blockchain_state[transaction.sender_address]["stake"] += transaction.amount
         return
 
     def get_network_state(self):
@@ -167,9 +171,31 @@ class Wallet:
     def add_transaction(self, transaction: Transaction) -> None:
         self.transactions_pending.append(transaction)
 
+    def stake_amount(self, amount: int) -> bool:
+        print("I got in!")
+        """Stake a certain amount of coins to be able to mine a block
+           A transaction is created to stake the amount of coins
+           with a receiver address of '0' 
+        """
+        if amount > self.balance:
+            print("Insufficient balance to stake")
+            return False
+        print("wah1")
+        transaction = self.create_transaction(sender_address=self.address,
+                                              receiver_address='0',
+                                              type_of_transaction="coins",
+                                              amount=amount,
+                                              message=None,
+                                              nonce=self.nonce)
+        print("wah2")
+        self.broadcast_transaction(transaction)
+        print("wah3")
+        print(f"({self.address}) Staked successfully {amount} coins")
+        return True
+    
     def mine_block(self):
         if len(self.transactions_pending) == 0:
-            print(f"(pid={os.getpid}) [INVALID BLOCK]: No transactions to mine (pending transactions list is empty)")
+            print(f"({self.address}) [INVALID BLOCK]: No transactions to mine (pending transactions list is empty)")
             return False
 
         last_block = self.blockchain.chain[-1]
