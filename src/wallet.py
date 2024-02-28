@@ -31,6 +31,7 @@ class Wallet:
         self.stake = 0
         self.nonce = 0  # counter for the number of transactions
         self.private_key, self.public_key = self.generate_wallet()
+        self.total_rewards = 0
 
         """
         State will contain a dictionary of all the nodes:
@@ -101,6 +102,11 @@ class Wallet:
         # Update the blockchain state balance for the sender and receiver
         if transaction.sender_address != "0":
             self.blockchain_state[transaction.sender_address]["balance"] -= transaction.amount
+            # 3% fee for the sender (stakes and the initial 1000 BCC transactions don't have a fee)
+            fee = transaction.amount * 0.03 if transaction.receiver_address != "0" and \
+                                               transaction.message != "Initial Transaction" else 0
+            self.blockchain_state[transaction.sender_address]["balance"] -= fee
+            self.total_rewards += fee
         if transaction.receiver_address != "0":
             self.blockchain_state[transaction.receiver_address]["balance"] += transaction.amount
         
@@ -213,9 +219,14 @@ class Wallet:
         new_block.current_hash = new_block.hash_block()
         broadcast_result = self.broadcast_block(new_block)
         if broadcast_result:
-            print(f"({self.address}) Block mined successfully")
+            print(f"({self.address}) Block mined successfully! Received {self.total_rewards} coins for mining the block.")
+            self.balance += self.total_rewards
+            self.blockchain_state[self.address]["balance"] += self.total_rewards
+            self.total_rewards = 0
         else:
             print(f"({self.address}) Block mined successfully but failed to broadcast")
+            self.transactions_pending = []
+            return None
         self.blockchain.add_block(new_block)
         self.transactions_pending = []
         return new_block
@@ -246,6 +257,10 @@ class Wallet:
         lottery = []
         for node in self.blockchain_state.keys():
             lottery += [node] * self.blockchain_state[node]["stake"]
+
+        # If there are no stakes, select a random node
+        if lottery == []:
+            lottery = list(self.blockchain_state.keys())
 
         # Set the seed to be the hash of the last block (or the previous block if an idx is given)
         random.seed(self.blockchain.chain[idx-1].current_hash)

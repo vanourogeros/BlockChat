@@ -67,7 +67,7 @@ def give_coins_to_everyone():
     for node in wallet.blockchain_state.keys():
         if node == wallet.address:
             continue
-        transaction = Transaction(wallet.address, node, "coins", 1000, "", wallet.nonce)
+        transaction = Transaction(wallet.address, node, "coins", 1000, "Initial Transaction", wallet.nonce)
         wallet.broadcast_transaction(transaction)
 
     print("All nodes have been given 1000 coins.")
@@ -128,6 +128,11 @@ def block():
         return jsonify({"error": "Invalid block"}), 400
 
     wallet.blockchain.add_block(block)
+    wallet.blockchain_state[validator]["balance"] += wallet.total_rewards
+
+    print(f"Validator {validator} has been given {wallet.total_rewards} coins for validating the block.")
+    wallet.total_rewards = 0
+
 
     return jsonify({"message": "Block received successfully"}), 200
 
