@@ -67,10 +67,6 @@ class Block:
 
         return True
 
-    def mint_block(self):
-        # tha mpei kan edw? h sto wallet?
-        pass
-
     def serialize(self) -> str:
         block = {
             "index": self.index,

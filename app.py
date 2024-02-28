@@ -128,6 +128,8 @@ def block():
         return jsonify({"error": "Invalid block"}), 400
 
     wallet.blockchain.add_block(block)
+
+    wallet.mining_lock.wait()
     wallet.blockchain_state[validator]["balance"] += wallet.total_rewards
 
     print(f"Validator {validator} has been given {wallet.total_rewards} coins for validating the block.")
@@ -165,6 +167,31 @@ def receive_block():
     wallet.blockchain.add_block(block)
     return jsonify({"message": "Block received successfully"}), 200
 
+@app.route('/api/make_transaction', methods=['POST'])
+def make_transaction():
+    data = request.json
+    if data is None:
+        return jsonify({"error": "No JSON data provided"}), 400
+
+    receiver_address = data['receiver_address']
+    amount = data['amount']
+    message = data['message']
+    type = data['type']
+
+    if receiver_address is None or amount is None:
+        return jsonify({"error": "Missing parameter(s)"}), 400
+
+    transaction = wallet.create_transaction(wallet.address, receiver_address, type, amount, message, wallet.nonce)
+    wallet.broadcast_transaction(transaction)
+
+    return jsonify({"message": "Transaction broadcasted successfully"}), 200
+
+@app.route('/api/pending_transactions', methods=['GET'])
+def pending_transactions():
+    transactions_list = []
+    for transaction in wallet.transactions_pending:
+        transactions_list.append(transaction.serialize())
+    return jsonify(transactions_list), 200
 
 @app.route('/api/my_transaction', methods=['GET'])
 def my_transaction():

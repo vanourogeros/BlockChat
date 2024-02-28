@@ -12,6 +12,7 @@ from Crypto.PublicKey import RSA
 from dotenv import load_dotenv
 import os
 import sys
+import threading
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 CAPACITY = int(os.getenv("CAPACITY"))
@@ -32,6 +33,11 @@ class Wallet:
         self.nonce = 0  # counter for the number of transactions
         self.private_key, self.public_key = self.generate_wallet()
         self.total_rewards = 0
+        self.mining_lock = threading.Event()
+        #self.transaction_lock = threading.Event()
+        
+        #self.transaction_lock.set()
+        self.mining_lock.clear()
 
         """
         State will contain a dictionary of all the nodes:
@@ -81,6 +87,7 @@ class Wallet:
         self.process_transaction(tran)
         genesis_block = Block(index=0, timestamp=time.time(),
                               transactions=[tran], validator=0, previous_hash='1')
+        self.transactions_pending = []
         self.blockchain.add_block(genesis_block)
 
     @staticmethod
@@ -91,13 +98,13 @@ class Wallet:
         return private_key.decode(), public_key.decode()
 
     def process_transaction(self, transaction: Transaction) -> None:
+        # self.transaction_lock.wait()
         # Update the balance of the wallet for a verified transaction
         if transaction.type_of_transaction == "coins":
             if transaction.receiver_address == self.address:
                 self.balance += transaction.amount
             elif transaction.sender_address == self.address:
                 self.balance -= transaction.amount
-        self.add_transaction(transaction)
 
         # Update the blockchain state balance for the sender and receiver
         if transaction.sender_address != "0":
@@ -113,6 +120,8 @@ class Wallet:
         # If the transaction is a stake (receiver address is '0'), update the blockchain state stake for the sender
         if transaction.receiver_address == "0":
             self.blockchain_state[transaction.sender_address]["stake"] += transaction.amount
+        
+        self.add_transaction(transaction)
         return
 
     def get_network_state(self):
@@ -152,6 +161,7 @@ class Wallet:
         # Increment the nonce of the wallet to keep track of the number of transactions
         # and prevent replay attacks/double spending
         self.nonce += 1
+        transaction.nonce = self.nonce
         transaction.sign_transaction(self.private_key)
 
         data = {
@@ -173,12 +183,17 @@ class Wallet:
         if response.status_code == 200:
             # If the transaction was broadcasted successfully, add it to the pending transactions list and process it
             self.process_transaction(transaction)
-            self.add_transaction(transaction)
+            
 
     def add_transaction(self, transaction: Transaction) -> None:
         self.transactions_pending.append(transaction)
         if len(self.transactions_pending) >= CAPACITY:
+            #self.transaction_lock.clear()
+            self.mining_lock.set()
+
             self.mine_block()
+
+            #self.transaction_lock.set()
         return
 
     def stake_amount(self, amount: int) -> bool:
@@ -216,7 +231,7 @@ class Wallet:
 
         new_block = Block(index=last_block.index + 1, timestamp=time.time(), transactions=self.transactions_pending,
                           validator=validator, previous_hash=last_block.current_hash)
-        new_block.current_hash = new_block.hash_block()
+
         broadcast_result = self.broadcast_block(new_block)
         if broadcast_result:
             print(f"({self.address}) Block mined successfully! Received {self.total_rewards} coins for mining the block.")
