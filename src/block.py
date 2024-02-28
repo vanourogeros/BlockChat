@@ -6,7 +6,6 @@ from Crypto.Hash.SHA256 import SHA256Hash
 from Crypto.Hash import SHA256
 
 from src.blockchain import Blockchain
-from src.transaction import Transaction
 
 from dotenv import load_dotenv
 
@@ -40,13 +39,13 @@ class Block:
         sha256_hash_object = SHA256.new(serialized_block)
         return sha256_hash_object
 
-    def validate_block(self, blockchain: Blockchain) -> bool:
+    def validate_block(self, blockchain: Blockchain, validator) -> bool:
         # For the genesis block we don't need to validate.
         # We suppose that the genesis block has a validator value of 0
         if self.validator == 0:
             return True
 
-            # Fetch the previous block in the blockchain
+        # Fetch the previous block in the blockchain
         previous_block = blockchain.chain[self.index - 1]
         # Verify Hashes
         if self.previous_hash != previous_block.current_hash:
@@ -55,8 +54,17 @@ class Block:
                 f"block in the blockchain.")
             return False
         if self.current_hash != self.hash_block().hexdigest():
-            print(f"(pid={os.getpid}) [INVALID BLOCK]: Current hash field is not equal to the hash of the block.")
+            print(f"[INVALID BLOCK]: Current hash field is not equal to the hash of the block.")
             return False
+        
+        # Verify the winner of the block
+        if self.validator != validator:
+            print(f"[INVALID BLOCK]: Validator field is not equal to the validator calculated."
+                   f"Calculated: {validator} \n"
+                   f"Given: {self.validator}")
+            return False
+
+
         return True
 
     def mint_block(self):

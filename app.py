@@ -110,6 +110,27 @@ def transaction():
     wallet.process_transaction(transaction)
     return jsonify({"message": "Transaction processed successfully"}), 200
 
+@app.route('/api/block', methods=['POST'])
+def block():
+    data = request.json
+    if data is None:
+        return jsonify({"error": "No JSON data provided"}), 400
+
+    transactions = []
+    for transaction in data['transactions']:
+        transactions.append(deserialize_trans(transaction))
+
+    block = Block(data['index'], data['timestamp'], transactions, data['validator'], data['previous_hash'])
+
+    validator = wallet.lottery(data['index'])
+
+    if not block.validate_block(wallet.blockchain, validator):
+        return jsonify({"error": "Invalid block"}), 400
+
+    wallet.blockchain.add_block(block)
+
+    return jsonify({"message": "Block received successfully"}), 200
+
 @app.route('/api/stake_amount', methods=['POST', 'GET'])
 def stake_amount():
     amount = int(request.args.get('amount'))
@@ -133,11 +154,10 @@ def receive_block():
 
     block = Block(data['index'], data['timestamp'], transactions, data['validator'], data['previous_hash'])
 
-    wallet.blockchain.add_block(block)
-
     if not wallet.blockchain.validate_chain():
         return jsonify({"error": "Invalid blockchain"}), 400
 
+    wallet.blockchain.add_block(block)
     return jsonify({"message": "Block received successfully"}), 200
 
 

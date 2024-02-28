@@ -1,4 +1,5 @@
 import json
+import random
 import time
 
 from src.block import Block
@@ -33,7 +34,7 @@ class Wallet:
 
         """
         State will contain a dictionary of all the nodes:
-        {address: {public_key, balance, stake} dictionaries}}
+        {address: {public_key, id, balance, stake} dictionaries}}
         """
         self.blockchain_state = {}
 
@@ -170,9 +171,11 @@ class Wallet:
 
     def add_transaction(self, transaction: Transaction) -> None:
         self.transactions_pending.append(transaction)
+        if len(self.transactions_pending) >= CAPACITY:
+            self.mine_block()
+        return
 
     def stake_amount(self, amount: int) -> bool:
-        print("I got in!")
         """Stake a certain amount of coins to be able to mine a block
            A transaction is created to stake the amount of coins
            with a receiver address of '0' 
@@ -180,16 +183,14 @@ class Wallet:
         if amount > self.balance:
             print("Insufficient balance to stake")
             return False
-        print("wah1")
+
         transaction = self.create_transaction(sender_address=self.address,
                                               receiver_address='0',
                                               type_of_transaction="coins",
                                               amount=amount,
                                               message=None,
                                               nonce=self.nonce)
-        print("wah2")
         self.broadcast_transaction(transaction)
-        print("wah3")
         print(f"({self.address}) Staked successfully {amount} coins")
         return True
     
@@ -199,9 +200,55 @@ class Wallet:
             return False
 
         last_block = self.blockchain.chain[-1]
+        validator = self.lottery()
+        if validator != self.address:
+            print(f"({self.address}) Not the winner of the lottery :(")
+            self.transactions_pending = []
+            return
+        
+        print(f"({self.address}) Winner of the lottery! Mining a block...")
+
         new_block = Block(index=last_block.index + 1, timestamp=time.time(), transactions=self.transactions_pending,
-                          validator=self.public_key, previous_hash=last_block.current_hash)
+                          validator=validator, previous_hash=last_block.current_hash)
         new_block.current_hash = new_block.hash_block()
+        broadcast_result = self.broadcast_block(new_block)
+        if broadcast_result:
+            print(f"({self.address}) Block mined successfully")
+        else:
+            print(f"({self.address}) Block mined successfully but failed to broadcast")
         self.blockchain.add_block(new_block)
         self.transactions_pending = []
         return new_block
+    
+    def broadcast_block(self, block: Block) -> bool:
+        payload = block.stringify()
+        response = None
+        for node in self.blockchain_state.keys():
+            if node == self.address:
+                continue
+            node_ip = node.split(":")[0]
+            node_port = node.split(":")[1]
+            response = requests.post(f"http://{node_ip}:{node_port}/api/block",
+                                     data=payload,
+                                     headers={'Content-Type': 'application/json'})
+            if response.status_code != 200:
+                print("Error:", response)
+                break
+        if response.status_code == 200:
+            print(f"({self.address}) Block broadcasted successfully")
+            return True
+        else:
+            return False
+
+    def lottery(self, idx=0):
+        """Select a random node to mine a block"""
+        # Create a lottery where the probability of winning is proportional to the stake of each node
+        lottery = []
+        for node in self.blockchain_state.keys():
+            lottery += [node] * self.blockchain_state[node]["stake"]
+
+        # Set the seed to be the hash of the last block (or the previous block if an idx is given)
+        random.seed(self.blockchain.chain[idx-1].current_hash)
+        winner = lottery[random.randint(0, len(lottery) - 1)]
+        return winner
+
