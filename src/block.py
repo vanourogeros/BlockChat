@@ -77,3 +77,12 @@ class Block:
             "current_hash": self.current_hash
         }
         return json.dumps(block)
+    
+    def calculate_reward(self) -> float:
+        reward = 0
+        for transaction in self.transactions:
+            if transaction.type_of_transaction == "coins" and transaction.message != "Initial Transaction":
+                reward += transaction.amount * 0.03
+            elif transaction.type_of_transaction == "message":
+                reward += len(transaction.message)
+        return round(reward, 3)
