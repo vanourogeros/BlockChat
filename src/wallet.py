@@ -133,6 +133,7 @@ class Wallet:
                 print(f"({self.address}) Received a message: {transaction.message}")
 
         self.add_transaction(transaction)
+        self.balance = round(self.balance, 3)
         return
 
     def get_network_state(self):
@@ -200,7 +201,7 @@ class Wallet:
         self.transactions_pending.append(transaction)
         if len(self.transactions_pending) >= CAPACITY:
             #self.transaction_lock.clear()
-            self.mining_lock.set()
+            #self.mining_lock.set()
 
             self.mine_block()
 
@@ -245,9 +246,10 @@ class Wallet:
 
         broadcast_result = self.broadcast_block(new_block)
         if broadcast_result:
-            print(f"({self.address}) Block mined successfully! Received {self.total_rewards} coins for mining the block.")
-            self.balance += self.total_rewards
-            self.blockchain_state[self.address]["balance"] += self.total_rewards
+            reward = new_block.calculate_reward()
+            print(f"({self.address}) Block mined successfully! Received {reward} coins for mining the block.")
+            self.balance += reward
+            self.blockchain_state[self.address]["balance"] += reward
             self.total_rewards = 0
         else:
             print(f"({self.address}) Block mined successfully but failed to broadcast")

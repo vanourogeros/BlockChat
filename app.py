@@ -133,8 +133,8 @@ def block():
 
     wallet.blockchain.add_block(block)
 
-    wallet.mining_lock.wait()
-    wallet.blockchain_state[validator]["balance"] += wallet.total_rewards
+    #wallet.mining_lock.wait()
+    wallet.blockchain_state[validator]["balance"] += block.calculate_reward()
 
     print(f"Validator {validator} has been given {wallet.total_rewards} coins for validating the block.")
     wallet.total_rewards = 0
