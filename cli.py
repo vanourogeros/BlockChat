@@ -56,28 +56,31 @@ def help():
 
 def main():
     parser = argparse.ArgumentParser(description='CLI app for the BlockChat system')
-    parser.add_argument("--ip", type=str, help="IP of the host")
-    parser.add_argument("-p", "--port", type=int, help="Port of the node")
+    # parser.add_argument("--ip", type=str, help="IP of the host")
+    # parser.add_argument("-p", "--port", type=int, help="Port of the node")
+    parser.add_argument("--address", type=str, help="Node address")
 
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
-    parser_t = subparsers.add_parser('t', help='make a transaction')
-    parser_t.add_argument('receiver_address', type=str, help='Recipient address')
-    parser_t.add_argument('amount', type=int, help='Amount to send')
+    parser_t = subparsers.add_parser('t', help='New transaction')
+    parser_t.add_argument('<receiver_address>', type=str, help='Recipient address')
+    parser_t.add_argument('<amount>', type=int, help='Amount to send')
 
-    parser_m = subparsers.add_parser('m', help='send a message')
-    parser_m.add_argument('receiver_address', type=str, help='Recipient address')
-    parser_m.add_argument('message', type=str, help='Message to send')
+    parser_m = subparsers.add_parser('m', help='New message')
+    parser_m.add_argument('<receiver_address>', type=str, help='Recipient address')
+    parser_m.add_argument('<message>', type=str, help='Message to send')
+
+    parser_h = subparsers.add_parser('help', help='Show help')
 
     args = parser.parse_args()
 
-    base_address = f'http://{args.ip}:{args.port}/api'
+    base_address = f'http://{args.address}/api'
 
     if args.command == 't':
         new_transaction(args, base_address)
     elif args.command == 'm': # we assume that for a new message the command is "m"
         new_message(args, base_address)
-    elif args.command == 't' or args.command is None:
+    elif args.command == 'help' or args.command is None:
         help()
     else:
         print('Invalid command')
