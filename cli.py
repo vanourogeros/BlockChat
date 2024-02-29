@@ -52,8 +52,13 @@ def view(base_address):
         print(tran)
 
 
-def balance():
-    pass
+def balance(base_address):
+    response = requests.get(f"{base_address}/get_balance",  headers={'Content-Type': 'application/json'})
+    if response.status_code != 200:
+        print("Error:", response)
+        return
+    data = response.json()
+    print("Wallet balance :", data['balance'])
 
 def help():
     print("Usage:")
@@ -94,9 +99,9 @@ def main():
     elif args.command == 'help' or args.command is None:
         help()
     elif args.command == 'view':
-        BOOTSTRAP_IP = os.getenv("BOOTSTRAP_IP")  # 127.0.0.1
-        BOOTSTRAP_PORT = int(os.getenv("BOOTSTRAP_PORT"))
-        view('http://' + BOOTSTRAP_IP+':'+str(BOOTSTRAP_PORT)+'/api')
+        view(base_address)
+    elif args.command == 'balance':
+        balance(base_address)
     else:
         print('Invalid command')
 
