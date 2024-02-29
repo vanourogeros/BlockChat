@@ -4,7 +4,7 @@ import json
 
 def new_transaction(args, base_address):
     data = {
-            "sender_address": f"{args.ip}:{args.port}",
+            "sender_address": f"{args.address}",
             "receiver_address": args.receiver_address,
             "amount": args.amount,
             "type": "coins",
@@ -21,7 +21,7 @@ def new_transaction(args, base_address):
 
 def new_message(args, base_address):
     data = {
-            "sender_address": f"{args.ip}:{args.port}",
+            "sender_address": f"{args.address}",
             "receiver_address": args.receiver_address,
             "amount": 0,
             "type": "message",
@@ -56,8 +56,6 @@ def help():
 
 def main():
     parser = argparse.ArgumentParser(description='CLI app for the BlockChat system')
-    # parser.add_argument("--ip", type=str, help="IP of the host")
-    # parser.add_argument("-p", "--port", type=int, help="Port of the node")
     parser.add_argument("--address", type=str, help="Node address")
 
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
