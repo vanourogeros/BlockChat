@@ -70,14 +70,16 @@ def main():
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
 
     parser_t = subparsers.add_parser('t', help='New transaction')
-    parser_t.add_argument('<receiver_address>', type=str, help='Recipient address')
-    parser_t.add_argument('<amount>', type=int, help='Amount to send')
+    parser_t.add_argument('receiver_address', type=str, help='Recipient address')
+    parser_t.add_argument('amount', type=int, help='Amount to send')
 
     parser_m = subparsers.add_parser('m', help='New message')
-    parser_m.add_argument('<receiver_address>', type=str, help='Recipient address')
-    parser_m.add_argument('<message>', type=str, help='Message to send')
+    parser_m.add_argument('receiver_address', type=str, help='Recipient address')
+    parser_m.add_argument('message', type=str, help='Message to send')
 
     parser_v = subparsers.add_parser('view', help='View last block')
+
+    parser_b = subparsers.add_parser('balance', help='Show balance')
 
     parser_h = subparsers.add_parser('help', help='Show help')
 
