@@ -80,7 +80,10 @@ def get_balance():
 
 @app.route('/api/get_last_block')
 def get_last_block():
-    return jsonify(wallet.blockchain.chain[-1].serialize()), 200
+    # Needed to convert the block to JSONifiable dictionary
+    block = json.loads(wallet.blockchain.chain[-1].serialize())
+    block["transactions"] = list(map(lambda transaction: json.loads(transaction), block["transactions"]))
+    return jsonify(block), 200
 
 
 @app.route('/api/get_network_state')

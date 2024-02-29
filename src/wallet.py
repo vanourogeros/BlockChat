@@ -99,28 +99,39 @@ class Wallet:
 
     def process_transaction(self, transaction: Transaction) -> None:
         # self.transaction_lock.wait()
-        # Update the balance of the wallet for a verified transaction
+        
         if transaction.type_of_transaction == "coins":
+            # Update the balance of the wallet for a verified transaction
             if transaction.receiver_address == self.address:
                 self.balance += transaction.amount
             elif transaction.sender_address == self.address:
                 self.balance -= transaction.amount
 
-        # Update the blockchain state balance for the sender and receiver
-        if transaction.sender_address != "0":
-            self.blockchain_state[transaction.sender_address]["balance"] -= transaction.amount
-            # 3% fee for the sender (stakes and the initial 1000 BCC transactions don't have a fee)
-            fee = transaction.amount * 0.03 if transaction.receiver_address != "0" and \
-                                               transaction.message != "Initial Transaction" else 0
+            # Update the blockchain state balance for the sender and receiver
+            if transaction.sender_address != "0":
+                self.blockchain_state[transaction.sender_address]["balance"] -= transaction.amount
+                # 3% fee for the sender (stakes and the initial 1000 BCC transactions don't have a fee)
+                fee = round(transaction.amount * 0.03, 3) if transaction.receiver_address != "0" and \
+                                                transaction.message != "Initial Transaction" else 0
+                self.blockchain_state[transaction.sender_address]["balance"] -= fee
+                self.total_rewards += fee
+            if transaction.receiver_address != "0":
+                self.blockchain_state[transaction.receiver_address]["balance"] += transaction.amount
+            
+            # If the transaction is a stake (receiver address is '0'), update the blockchain state stake for the sender
+            if transaction.receiver_address == "0":
+                self.blockchain_state[transaction.sender_address]["stake"] += transaction.amount
+        
+        elif transaction.type_of_transaction == "message":
+            fee = len(transaction.message)
             self.blockchain_state[transaction.sender_address]["balance"] -= fee
             self.total_rewards += fee
-        if transaction.receiver_address != "0":
-            self.blockchain_state[transaction.receiver_address]["balance"] += transaction.amount
-        
-        # If the transaction is a stake (receiver address is '0'), update the blockchain state stake for the sender
-        if transaction.receiver_address == "0":
-            self.blockchain_state[transaction.sender_address]["stake"] += transaction.amount
-        
+            if transaction.sender_address == self.address:
+                print(f"({self.address}) Sent a message: `{transaction.message}` for a fee of {fee} coins")
+                self.balance -= transaction.amount
+            if transaction.receiver_address == self.address:
+                print(f"({self.address}) Received a message: {transaction.message}")
+
         self.add_transaction(transaction)
         return
 
