@@ -2,6 +2,52 @@ import argparse
 import requests
 import json
 
+def new_transaction(args, base_address):
+    data = {
+            "sender_address": f"{args.ip}:{args.port}",
+            "receiver_address": args.receiver_address,
+            "amount": args.amount,
+            "type": "coins",
+            "message": ""
+        }
+    payload = json.dumps(data)
+    print(f"{base_address}/make_transaction")
+    response = requests.post(f"{base_address}/make_transaction", data=payload, headers={'Content-Type': 'application/json'})
+    if response.status_code != 200:
+        print("Error:", response)
+        return
+    print("Transaction was successful")
+    print(response)
+
+def new_message(args, base_address):
+    data = {
+            "sender_address": f"{args.ip}:{args.port}",
+            "receiver_address": args.receiver_address,
+            "amount": 0,
+            "type": "message",
+            "message": args.message
+        }
+    payload = json.dumps(data)
+    response = requests.post(f"{base_address}/make_transaction", data=payload, headers={'Content-Type': 'application/json'})
+    if response.status_code != 200:
+        print("Error:", response)
+        return
+    print("Message was successful")
+    print(response)
+
+def stake():
+    pass
+
+def view():
+    pass
+
+def balance():
+    pass
+
+def help():
+    pass
+
+
 def main():
     parser = argparse.ArgumentParser(description='CLI app for the BlockChat system')
     parser.add_argument("--ip", type=str, help="IP of the host")
@@ -22,36 +68,9 @@ def main():
     base_address = f'http://{args.ip}:{args.port}/api'
 
     if args.command == 't':
-        data = {
-            "sender_address": f"{args.ip}:{args.port}",
-            "receiver_address": args.receiver_address,
-            "amount": args.amount,
-            "type": "coins",
-            "message": ""
-        }
-        payload = json.dumps(data)
-        print(f"{base_address}/make_transaction")
-        response = requests.post(f"{base_address}/make_transaction", data=payload, headers={'Content-Type': 'application/json'})
-        if response.status_code != 200:
-            print("Error:", response)
-            return
-        print("Transaction was successful")
-        print(response)
+        new_transaction(args, base_address)
     elif args.command == 'm':
-        data = {
-            "sender_address": f"{args.ip}:{args.port}",
-            "receiver_address": args.receiver_address,
-            "amount": 0,
-            "type": "message",
-            "message": args.message
-        }
-        payload = json.dumps(data)
-        response = requests.post(f"{base_address}/make_transaction", data=payload, headers={'Content-Type': 'application/json'})
-        if response.status_code != 200:
-            print("Error:", response)
-            return
-        print("Message was successful")
-        print(response)
+        new_message(args, base_address)
     else:
         print('Invalid command')
 
