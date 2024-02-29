@@ -78,11 +78,12 @@ def get_balance():
     return jsonify({"balance": wallet.balance}), 200
 
 
-@app.route('/api/get_last_block')
-def get_last_block():
+@app.route('/api/view_block', methods=['GET'])
+def view_block():
     # Needed to convert the block to JSONifiable dictionary
     block = json.loads(wallet.blockchain.chain[-1].serialize())
     block["transactions"] = list(map(lambda transaction: json.loads(transaction), block["transactions"]))
+
     return jsonify(block), 200
 
 
