@@ -45,7 +45,13 @@ def balance():
     pass
 
 def help():
-    pass
+    print("Usage:")
+    print("  t <recipient_address> <amount>  : New transaction")
+    print("  m <recipient_address> <message> : New message")
+    print("  stake <amount>                  : Set the node stake")
+    print("  view                            : View last block")
+    print("  balance                         : Show balance")
+
 
 
 def main():
@@ -69,8 +75,10 @@ def main():
 
     if args.command == 't':
         new_transaction(args, base_address)
-    elif args.command == 'm':
+    elif args.command == 'm': # we assume that for a new message the command is "m"
         new_message(args, base_address)
+    elif args.command == 't' or args.command is None:
+        help()
     else:
         print('Invalid command')
 
