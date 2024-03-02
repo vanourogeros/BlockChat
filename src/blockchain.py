@@ -1,7 +1,3 @@
-#from src.block import Block
-# If we import block a circular import will occur.
-
-
 class Blockchain:
     def __init__(self) -> None:
         self.chain = []
