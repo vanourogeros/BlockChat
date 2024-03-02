@@ -28,33 +28,30 @@ class Wallet:
         self.port = port
         self.address = f"{ip_address}:{port}"
         self.bootstrap = bootstrap
-        self.balance = 0
-        self.stake = 0
+        self.balance = 0.0
+        self.stake = 0.0
         self.nonce = 0  # counter for the number of transactions
         self.private_key, self.public_key = self.generate_wallet()
-        self.total_rewards = 0
-        self.mining_lock = threading.Event()
-        #self.transaction_lock = threading.Event()
-        
-        #self.transaction_lock.set()
-        self.mining_lock.clear()
 
+        self.blockchain_state = {}
         """
         State will contain a dictionary of all the nodes:
         {address: {public_key, id, balance, stake} dictionaries}}
         """
-        self.blockchain_state = {}
 
-        self.transactions_pending = []
+        self.transactions_pending = {}
         self.blockchain = Blockchain()
+
+        self.mutex = threading.Lock()
+        self.capacity_full = threading.Event()
 
         if bootstrap:
             self.id = 0
             self.given_id = 0
             self.blockchain_state[self.address] = {"public_key": self.public_key,
                                                    "id": self.id,
-                                                   "balance": 0,
-                                                   "stake": 0}
+                                                   "balance": 0.0,
+                                                   "stake": 0.0}
 
             self.create_genesis_block()
         else:
@@ -86,8 +83,7 @@ class Wallet:
         # We don't verify the transaction because it's the genesis block, so we process it directly
         self.process_transaction(tran)
         genesis_block = Block(index=0, timestamp=time.time(),
-                              transactions=[tran], validator=0, previous_hash='1')
-        self.transactions_pending = []
+                              transactions=[tran], validator=-1, previous_hash='1')
         self.blockchain.add_block(genesis_block)
 
     @staticmethod
@@ -98,41 +94,41 @@ class Wallet:
         return private_key.decode(), public_key.decode()
 
     def process_transaction(self, transaction: Transaction) -> None:
-        # self.transaction_lock.wait()
-        
-        if transaction.type_of_transaction == "coins":
-            # Update the balance of the wallet for a verified transaction
+        # Case: Stake, check also self.stake
+        if transaction.receiver_address == "0":
+            self.blockchain_state[transaction.sender_address]["stake"] = transaction.amount
+            if transaction.sender_address == self.address:
+                self.stake = transaction.amount
+
+        # Case: Coins
+        elif transaction.type_of_transaction == "coins":
+            # Check if self is receiving/sending
             if transaction.receiver_address == self.address:
                 self.balance += transaction.amount
             elif transaction.sender_address == self.address:
                 self.balance -= transaction.amount
 
-            # Update the blockchain state balance for the sender and receiver
+            # Update the blockchain state balance for the sender
             if transaction.sender_address != "0":
                 self.blockchain_state[transaction.sender_address]["balance"] -= transaction.amount
-                # 3% fee for the sender (stakes and the initial 1000 BCC transactions don't have a fee)
-                fee = round(transaction.amount * 0.03, 3) if transaction.receiver_address != "0" and \
-                                                transaction.message != "Initial Transaction" else 0
+                # 3% fee for the sender (the initial 1000 BCC transactions don't have a fee)
+                fee = round(transaction.amount * 0.03, 3) if transaction.message != "Initial Transaction" else 0
                 self.blockchain_state[transaction.sender_address]["balance"] -= fee
-                self.total_rewards += fee
-            if transaction.receiver_address != "0":
-                self.blockchain_state[transaction.receiver_address]["balance"] += transaction.amount
-            
-            # If the transaction is a stake (receiver address is '0'), update the blockchain state stake for the sender
-            if transaction.receiver_address == "0":
-                self.blockchain_state[transaction.sender_address]["stake"] += transaction.amount
-        
+                if transaction.sender_address == self.address:
+                    self.balance -= fee
+
+            # Update blockchain state for receiver
+            self.blockchain_state[transaction.receiver_address]["balance"] += transaction.amount
+
         elif transaction.type_of_transaction == "message":
             fee = len(transaction.message)
             self.blockchain_state[transaction.sender_address]["balance"] -= fee
-            self.total_rewards += fee
             if transaction.sender_address == self.address:
                 print(f"({self.address}) Sent a message: `{transaction.message}` for a fee of {fee} coins")
                 self.balance -= transaction.amount
             if transaction.receiver_address == self.address:
                 print(f"({self.address}) Received a message: {transaction.message}")
 
-        self.add_transaction(transaction)
         self.balance = round(self.balance, 3)
         return
 
@@ -145,7 +141,6 @@ class Wallet:
                 "public_key": self.public_key
             }
             payload = json.dumps(data)
-            print(payload)
             response = requests.post(f"http://{self.ip_address}:{self.port}/api/get_network_state",
                                      data=payload,
                                      headers={'Content-Type': 'application/json'})
@@ -157,8 +152,8 @@ class Wallet:
     def register_node(self, address: str, public_key: str) -> None:
         self.blockchain_state[address] = {"public_key": public_key,
                                           "id": self.given_id,
-                                          "balance": 0,
-                                          "stake": 0}
+                                          "balance": 0.0,
+                                          "stake": 0.0}
 
         return
 
@@ -181,31 +176,28 @@ class Wallet:
         }
         payload = json.dumps(data)
         response = None
+        self.mutex.acquire()
         for node in self.blockchain_state.keys():
             if node == self.address:
                 continue
             node_ip = node.split(":")[0]
             node_port = node.split(":")[1]
-            response = requests.post(f"http://{node_ip}:{node_port}/api/transaction",
+            response = requests.post(f"http://{node_ip}:{node_port}/api/receive_transaction",
                                      data=payload,
                                      headers={'Content-Type': 'application/json'})
             if response.status_code != 200:
-                print("Error:", response)
+                print("Error:", response.json())
+                self.mutex.release()
                 break
         if response.status_code == 200:
             # If the transaction was broadcasted successfully, add it to the pending transactions list and process it
+            if transaction.sender_address != '0':
+                self.transactions_pending[transaction.transaction_id] = transaction
+            self.mutex.release()
             self.process_transaction(transaction)
-            
+            if len(self.transactions_pending) >= CAPACITY:
+                self.capacity_full.set()
 
-    def add_transaction(self, transaction: Transaction) -> None:
-        self.transactions_pending.append(transaction)
-        if len(self.transactions_pending) >= CAPACITY:
-            #self.transaction_lock.clear()
-            #self.mining_lock.set()
-
-            self.mine_block()
-
-            #self.transaction_lock.set()
         return
 
     def stake_amount(self, amount: int) -> bool:
@@ -221,28 +213,28 @@ class Wallet:
                                               receiver_address='0',
                                               type_of_transaction="coins",
                                               amount=amount,
-                                              message=None,
+                                              message="",
                                               nonce=self.nonce)
         self.broadcast_transaction(transaction)
         print(f"({self.address}) Staked successfully {amount} coins")
         return True
-    
+
     def mine_block(self):
         if len(self.transactions_pending) == 0:
             print(f"({self.address}) [INVALID BLOCK]: No transactions to mine (pending transactions list is empty)")
-            return False
+            return
 
         last_block = self.blockchain.chain[-1]
         validator = self.lottery()
-        if validator != self.address:
+        if validator != self.id:
             print(f"({self.address}) Not the winner of the lottery :(")
-            self.transactions_pending = []
             return
-        
+
         print(f"({self.address}) Winner of the lottery! Mining a block...")
 
-        new_block = Block(index=last_block.index + 1, timestamp=time.time(), transactions=self.transactions_pending,
-                          validator=validator, previous_hash=last_block.current_hash)
+        new_block = Block(index=last_block.index + 1, timestamp=time.time(),
+                          transactions=list(self.transactions_pending.values())[:CAPACITY], validator=validator,
+                          previous_hash=last_block.current_hash)
 
         broadcast_result = self.broadcast_block(new_block)
         if broadcast_result:
@@ -250,28 +242,26 @@ class Wallet:
             print(f"({self.address}) Block mined successfully! Received {reward} coins for mining the block.")
             self.balance += reward
             self.blockchain_state[self.address]["balance"] += reward
-            self.total_rewards = 0
         else:
             print(f"({self.address}) Block mined successfully but failed to broadcast")
-            self.transactions_pending = []
-            return None
+            return
         self.blockchain.add_block(new_block)
-        self.transactions_pending = []
-        return new_block
-    
+        self.transactions_pending = dict(list(self.transactions_pending.items())[CAPACITY:])
+        return
+
     def broadcast_block(self, block: Block) -> bool:
-        payload = block.stringify()
+        payload = block.serialize()
         response = None
         for node in self.blockchain_state.keys():
             if node == self.address:
                 continue
             node_ip = node.split(":")[0]
             node_port = node.split(":")[1]
-            response = requests.post(f"http://{node_ip}:{node_port}/api/block",
+            response = requests.post(f"http://{node_ip}:{node_port}/api/receive_block",
                                      data=payload,
                                      headers={'Content-Type': 'application/json'})
             if response.status_code != 200:
-                print("Error:", response)
+                print("Error:", response.json())
                 break
         if response.status_code == 200:
             print(f"({self.address}) Block broadcasted successfully")
@@ -283,15 +273,16 @@ class Wallet:
         """Select a random node to mine a block"""
         # Create a lottery where the probability of winning is proportional to the stake of each node
         lottery = []
-        for node in self.blockchain_state.keys():
-            lottery += [node] * self.blockchain_state[node]["stake"]
+        id_list = [entry['id'] for entry in self.blockchain_state.values()]
+        nodes = self.blockchain_state.keys()
+        for id, node in zip(id_list, nodes):
+            lottery += [id] * int(100 * (self.blockchain_state[node]["stake"]))
 
         # If there are no stakes, select a random node
-        if lottery == []:
-            lottery = list(self.blockchain_state.keys())
+        if not lottery:
+            lottery = id_list
 
         # Set the seed to be the hash of the last block (or the previous block if an idx is given)
-        random.seed(self.blockchain.chain[idx-1].current_hash)
+        random.seed(self.blockchain.chain[idx - 1].current_hash)
         winner = lottery[random.randint(0, len(lottery) - 1)]
         return winner
-

@@ -17,6 +17,7 @@ load_dotenv()
 BOOTSTRAP_IP = os.getenv("BOOTSTRAP_IP")  # 127.0.0.1
 BOOTSTRAP_PORT = int(os.getenv("BOOTSTRAP_PORT"))  # 5000
 TOTAL_NODES = int(os.getenv("TOTAL_NODES"))
+CAPACITY = int(os.getenv("CAPACITY"))
 
 app = Flask(__name__)
 
@@ -46,7 +47,7 @@ def broadcast_network_blockchain():
                                  data=payload,
                                  headers={'Content-Type': 'application/json'})
         if response.status_code != 200:
-            print("Error:", response)
+            print("Error:", response.json())
             sys.exit(1)
 
         for block in wallet.blockchain.chain:
@@ -55,7 +56,7 @@ def broadcast_network_blockchain():
                                      data=payload,
                                      headers={'Content-Type': 'application/json'})
             if response.status_code != 200:
-                print("Error:", response)
+                print("Error:", response.json())
                 sys.exit(1)
 
     print("All nodes have been registered and informed of the network state and blockchain.")
@@ -67,10 +68,27 @@ def give_coins_to_everyone():
     for node in wallet.blockchain_state.keys():
         if node == wallet.address:
             continue
-        transaction = Transaction(wallet.address, node, "coins", 1000, "Initial Transaction", wallet.nonce)
+        transaction = Transaction(wallet.address, node, "coins", 1000,
+                                  "Initial Transaction", wallet.nonce)
         wallet.broadcast_transaction(transaction)
 
     print("All nodes have been given 1000 coins.")
+
+
+def process_incoming_transaction(transaction: Transaction):
+    if transaction.sender_address != '0':
+        wallet.transactions_pending[transaction.transaction_id] = transaction
+    wallet.process_transaction(transaction)
+    if len(wallet.transactions_pending) >= CAPACITY:
+        wallet.capacity_full.set()
+    return
+
+
+def miner_thread_func():
+    while True:
+        wallet.capacity_full.wait()
+        wallet.mine_block()
+        wallet.capacity_full.clear()
 
 
 @app.route('/api/get_balance')
@@ -92,8 +110,8 @@ def get_network_state():
     return jsonify(wallet.blockchain_state), 200
 
 
-@app.route('/api/transaction', methods=['POST'])
-def transaction():
+@app.route('/api/receive_transaction', methods=['POST'])
+def receive_transaction():
     data = request.json
     if data is None:
         return jsonify({"error": "No JSON data provided"}), 400
@@ -111,36 +129,56 @@ def transaction():
         print("Invalid balance")
         return jsonify({"error": "Invalid balance"}), 400
 
-    wallet.process_transaction(transaction)
+    process_incoming_transaction(transaction)
     return jsonify({"message": "Transaction processed successfully"}), 200
 
-@app.route('/api/block', methods=['POST'])
-def block():
+
+@app.route('/api/receive_block', methods=['POST'])
+def receive_block():
     data = request.json
     if data is None:
         return jsonify({"error": "No JSON data provided"}), 400
 
     transactions = []
+    wallet.mutex.acquire()
     for transaction in data['transactions']:
-        transactions.append(deserialize_trans(transaction))
+        trans_object = deserialize_trans(transaction)
+        transactions.append(trans_object)
+        try:
+            del wallet.transactions_pending[trans_object.transaction_id]
+        except KeyError:
+            if trans_object.sender_address == '0':
+                continue
+            else:
+                wallet.mutex.release()
+                return jsonify({"message": "Invalid transaction id, not found in pending transactions"}), 400
+        except Exception:
+            wallet.mutex.release()
+            return jsonify({"message": "Some error occurred"}), 400
+    wallet.mutex.release()
 
     block = Block(data['index'], data['timestamp'], transactions, data['validator'], data['previous_hash'])
 
-    validator = wallet.lottery(data['index'])
+    if data['previous_hash'] == '1':
+        validator = 0
+    else:
+        validator = wallet.lottery(data['index'])
 
     if not block.validate_block(wallet.blockchain, validator):
         return jsonify({"error": "Invalid block"}), 400
 
     wallet.blockchain.add_block(block)
 
-    #wallet.mining_lock.wait()
-    wallet.blockchain_state[validator]["balance"] += block.calculate_reward()
+    # update the validator balance
+    for key, value in wallet.blockchain_state.items():
+        if value['id'] == validator:
+            wallet.blockchain_state[key]['balance'] += block.calculate_reward()
+            break
 
-    print(f"Validator {validator} has been given {wallet.total_rewards} coins for validating the block.")
-    wallet.total_rewards = 0
-
+    print(f"Validator {validator} has been given {block.calculate_reward()} coins for validating the block.")
 
     return jsonify({"message": "Block received successfully"}), 200
+
 
 @app.route('/api/stake_amount', methods=['POST', 'GET'])
 def stake_amount():
@@ -153,23 +191,6 @@ def stake_amount():
         return jsonify({"error": "Insufficient balance"}), 400
     return jsonify({"message": "Stake successful"}), 200
 
-@app.route('/api/receive_block', methods=['POST'])
-def receive_block():
-    data = request.json
-    if data is None:
-        return jsonify({"error": "No JSON data provided"}), 400
-
-    transactions = []
-    for transaction in data['transactions']:
-        transactions.append(deserialize_trans(transaction))
-
-    block = Block(data['index'], data['timestamp'], transactions, data['validator'], data['previous_hash'])
-
-    if not wallet.blockchain.validate_chain():
-        return jsonify({"error": "Invalid blockchain"}), 400
-
-    wallet.blockchain.add_block(block)
-    return jsonify({"message": "Block received successfully"}), 200
 
 @app.route('/api/make_transaction', methods=['POST'])
 def make_transaction():
@@ -190,21 +211,23 @@ def make_transaction():
 
     return jsonify({"message": "Transaction broadcasted successfully"}), 200
 
+
 @app.route('/api/pending_transactions', methods=['GET'])
 def pending_transactions():
     transactions_list = []
-    for transaction in wallet.transactions_pending:
+    for transaction in wallet.transactions_pending.values():
         transactions_list.append(transaction.serialize())
     return jsonify(transactions_list), 200
 
-@app.route('/api/my_transaction', methods=['GET'])
+
+@app.route('/api/test_transaction', methods=['GET'])
 def my_transaction():
     """
     Send some coins to the bootstrap node
     """
     receiver_address = '127.0.0.1:5000'
     amount = int(request.args.get('amount'))
-    message = None
+    message = ""
 
     if receiver_address is None or amount is None:
         return jsonify({"error": "Missing parameter(s)"}), 400
@@ -213,6 +236,7 @@ def my_transaction():
     wallet.broadcast_transaction(transaction)
 
     return jsonify({"message": "Transaction broadcasted successfully"}), 200
+
 
 if bootstrap:
     broadcast_thread = threading.Thread(target=broadcast_network_blockchain).start()
@@ -247,4 +271,5 @@ if not bootstrap:
         return jsonify({'message': 'State received and updated successfully'}), 200
 
 if __name__ == '__main__':
+    miner_thread = threading.Thread(target=miner_thread_func).start()
     app.run(host=ip_address, port=port)
