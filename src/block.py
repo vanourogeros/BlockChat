@@ -39,10 +39,10 @@ class Block:
         sha256_hash_object = SHA256.new(serialized_block)
         return sha256_hash_object
 
-    def validate_block(self, blockchain: Blockchain, validator) -> bool:
+    def validate_block(self, blockchain: Blockchain, validator: int) -> bool:
         # For the genesis block we don't need to validate.
         # We suppose that the genesis block has a validator value of 0
-        if self.validator == 0:
+        if self.validator == -1:
             return True
 
         # Fetch the previous block in the blockchain
@@ -56,14 +56,13 @@ class Block:
         if self.current_hash != self.hash_block().hexdigest():
             print(f"[INVALID BLOCK]: Current hash field is not equal to the hash of the block.")
             return False
-        
+
         # Verify the winner of the block
         if self.validator != validator:
             print(f"[INVALID BLOCK]: Validator field is not equal to the validator calculated."
-                   f"Calculated: {validator} \n"
-                   f"Given: {self.validator}")
+                  f"Calculated: {validator} \n"
+                  f"Given: {self.validator}")
             return False
-
 
         return True
 
@@ -77,11 +76,12 @@ class Block:
             "current_hash": self.current_hash
         }
         return json.dumps(block)
-    
+
     def calculate_reward(self) -> float:
         reward = 0
         for transaction in self.transactions:
-            if transaction.type_of_transaction == "coins" and transaction.message != "Initial Transaction":
+            if (transaction.type_of_transaction == "coins" and transaction.sender_address != "0"
+                and transaction.message != "Initial Transaction") and transaction.receiver_address != '0':
                 reward += transaction.amount * 0.03
             elif transaction.type_of_transaction == "message":
                 reward += len(transaction.message)
