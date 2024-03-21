@@ -34,11 +34,19 @@ def new_message(args, base_address):
     if response.status_code != 200:
         print("Error:", response)
         return
+    print("Stake successful")
+
+def stake(args, base_address):
+    data = {
+        "amount": args.amount
+    }
+    payload = json.dumps(data)
+    response = requests.post(f"{base_address}/stake_amount", data=payload, headers={'Content-Type': 'application/json'})
+    if response.status_code != 200:
+        print("Error:", response)
+        return
     print("Message was successful")
     print(response)
-
-def stake():
-    pass
 
 def view(base_address):
     response = requests.get(f"{base_address}/view_block",  headers={'Content-Type': 'application/json'})
@@ -86,6 +94,10 @@ def main():
 
     parser_b = subparsers.add_parser('balance', help='Show balance')
 
+    parser_s = subparsers.add_parser('stake', help='Stake amount')
+    parser_s.add_argument('amount', type=int, help='Amount for staking')
+
+
     parser_h = subparsers.add_parser('help', help='Show help')
 
     args = parser.parse_args()
@@ -102,6 +114,8 @@ def main():
         view(base_address)
     elif args.command == 'balance':
         balance(base_address)
+    elif args.command == 'stake':
+        stake(args, base_address)
     else:
         print('Invalid command')
 

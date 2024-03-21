@@ -182,7 +182,9 @@ def receive_block():
 
 @app.route('/api/stake_amount', methods=['POST', 'GET'])
 def stake_amount():
-    amount = int(request.args.get('amount'))
+    # amount = int(request.args.get('amount'))
+    data = request.json
+    amount = data["amount"]
     if amount is None:
         return jsonify({"error": "Missing parameter(s)"}), 400
 
