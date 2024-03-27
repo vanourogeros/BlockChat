@@ -6,35 +6,39 @@ import os
 
 def new_transaction(args, base_address):
     data = {
-            "sender_address": f"{args.address}",
-            "receiver_address": args.receiver_address,
-            "amount": args.amount,
-            "type": "coins",
-            "message": ""
-        }
+        "sender_address": f"{args.address}",
+        "receiver_address": args.receiver_address,
+        "amount": args.amount,
+        "type": "coins",
+        "message": ""
+    }
     payload = json.dumps(data)
     print(f"{base_address}/make_transaction")
-    response = requests.post(f"{base_address}/make_transaction", data=payload, headers={'Content-Type': 'application/json'})
+    response = requests.post(f"{base_address}/make_transaction", data=payload,
+                             headers={'Content-Type': 'application/json'})
     if response.status_code != 200:
         print("Error:", response)
         return
     print("Transaction was successful")
     print(response)
 
+
 def new_message(args, base_address):
     data = {
-            "sender_address": f"{args.address}",
-            "receiver_address": args.receiver_address,
-            "amount": 0,
-            "type": "message",
-            "message": args.message
-        }
+        "sender_address": f"{args.address}",
+        "receiver_address": args.receiver_address,
+        "amount": 0,
+        "type": "message",
+        "message": args.message
+    }
     payload = json.dumps(data)
-    response = requests.post(f"{base_address}/make_transaction", data=payload, headers={'Content-Type': 'application/json'})
+    response = requests.post(f"{base_address}/make_transaction", data=payload,
+                             headers={'Content-Type': 'application/json'})
     if response.status_code != 200:
         print("Error:", response)
         return
     print("Stake successful")
+
 
 def stake(args, base_address):
     data = {
@@ -48,8 +52,9 @@ def stake(args, base_address):
     print("Message was successful")
     print(response)
 
+
 def view(base_address):
-    response = requests.get(f"{base_address}/view_block",  headers={'Content-Type': 'application/json'})
+    response = requests.get(f"{base_address}/view_block", headers={'Content-Type': 'application/json'})
     if response.status_code != 200:
         print("Error:", response)
         return
@@ -61,12 +66,13 @@ def view(base_address):
 
 
 def balance(base_address):
-    response = requests.get(f"{base_address}/get_balance",  headers={'Content-Type': 'application/json'})
+    response = requests.get(f"{base_address}/get_balance", headers={'Content-Type': 'application/json'})
     if response.status_code != 200:
         print("Error:", response)
         return
     data = response.json()
     print("Wallet balance :", data['balance'])
+
 
 def help():
     print("Usage:")
@@ -75,6 +81,7 @@ def help():
     print("  stake <amount>                  : Set the node stake")
     print("  view                            : View last block")
     print("  balance                         : Show balance")
+
 
 def main():
     parser = argparse.ArgumentParser(description='CLI app for the BlockChat system')
@@ -97,7 +104,6 @@ def main():
     parser_s = subparsers.add_parser('stake', help='Stake amount')
     parser_s.add_argument('amount', type=int, help='Amount for staking')
 
-
     parser_h = subparsers.add_parser('help', help='Show help')
 
     args = parser.parse_args()
@@ -106,7 +112,7 @@ def main():
 
     if args.command == 't':
         new_transaction(args, base_address)
-    elif args.command == 'm': # we assume that for a new message the command is "m"
+    elif args.command == 'm':  # we assume that for a new message the command is "m"
         new_message(args, base_address)
     elif args.command == 'help' or args.command is None:
         help()
@@ -118,6 +124,7 @@ def main():
         stake(args, base_address)
     else:
         print('Invalid command')
+
 
 if __name__ == '__main__':
     main()

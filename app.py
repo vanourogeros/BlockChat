@@ -10,6 +10,7 @@ import json
 import requests
 import threading
 import time
+from copy import deepcopy
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -59,6 +60,8 @@ def broadcast_network_blockchain():
                 print("Error:", response.json())
                 sys.exit(1)
 
+    wallet.blockchain_state_hard = deepcopy(wallet.blockchain_state)
+
     print("All nodes have been registered and informed of the network state and blockchain.")
     print("Will now give 1000 coins to everyone.")
     give_coins_to_everyone()
@@ -91,6 +94,19 @@ def miner_thread_func():
         wallet.capacity_full.clear()
 
 
+def verify_trans(transaction: Transaction):
+    # Verify the signature of the transaction
+    if not transaction.verify_signature(wallet.blockchain_state[transaction.sender_address]["public_key"]):
+        return False
+
+    # Verify transaction balance
+    if not transaction.verify_balance(wallet.blockchain_state[transaction.sender_address]["balance"],
+                                      wallet.blockchain_state[transaction.sender_address]["stake"]):
+        return False
+
+    return True
+
+
 @app.route('/api/get_balance')
 def get_balance():
     return jsonify({"balance": wallet.balance}), 200
@@ -110,6 +126,11 @@ def get_network_state():
     return jsonify(wallet.blockchain_state), 200
 
 
+@app.route('/api/get_network_state_hard')
+def get_network_state_hard():
+    return jsonify(wallet.blockchain_state_hard), 200
+
+
 @app.route('/api/receive_transaction', methods=['POST'])
 def receive_transaction():
     data = request.json
@@ -118,16 +139,9 @@ def receive_transaction():
 
     transaction = deserialize_trans(data['transaction'])
 
-    # Verify the signature of the transaction
-    if not transaction.verify_signature(wallet.blockchain_state[transaction.sender_address]["public_key"]):
-        print("Invalid signature")
-        return jsonify({"error": "Invalid signature"}), 400
-
-    # Verify transaction balance
-    if not transaction.verify_balance(wallet.blockchain_state[transaction.sender_address]["balance"],
-                                      wallet.blockchain_state[transaction.sender_address]["stake"]):
-        print("Invalid balance")
-        return jsonify({"error": "Invalid balance"}), 400
+    if not verify_trans(transaction):
+        print("Invalid signature or balance")
+        return jsonify({"error": "Invalid signature or balance"}), 400
 
     process_incoming_transaction(transaction)
     return jsonify({"message": "Transaction processed successfully"}), 200
@@ -140,18 +154,17 @@ def receive_block():
         return jsonify({"error": "No JSON data provided"}), 400
 
     transactions = []
+    wallet.blockchain_state = deepcopy(wallet.blockchain_state_hard)
     wallet.mutex.acquire()
     for transaction in data['transactions']:
         trans_object = deserialize_trans(transaction)
         transactions.append(trans_object)
+        if trans_object.sender_address != '0':
+            wallet.process_transaction(trans_object)
         try:
             del wallet.transactions_pending[trans_object.transaction_id]
         except KeyError:
-            if trans_object.sender_address == '0':
-                continue
-            else:
-                wallet.mutex.release()
-                return jsonify({"message": "Invalid transaction id, not found in pending transactions"}), 400
+            continue
         except Exception:
             wallet.mutex.release()
             return jsonify({"message": "Some error occurred"}), 400
@@ -176,13 +189,19 @@ def receive_block():
             break
 
     print(f"Validator {validator} has been given {block.calculate_reward()} coins for validating the block.")
+    wallet.blockchain_state_hard = deepcopy(wallet.blockchain_state)
+
+    for trans_id, trans_obj in wallet.transactions_pending.items():
+        if not verify_trans(trans_obj):
+            del wallet.transactions_pending[trans_id]
+        else:
+            wallet.process_transaction(trans_obj)
 
     return jsonify({"message": "Block received successfully"}), 200
 
 
 @app.route('/api/stake_amount', methods=['POST', 'GET'])
 def stake_amount():
-    # amount = int(request.args.get('amount'))
     data = request.json
     amount = data["amount"]
     if amount is None:
@@ -270,6 +289,7 @@ if not bootstrap:
         if data is None:
             return jsonify({"error": "No JSON data provided"}), 400
         wallet.blockchain_state = data
+        wallet.blockchain_state_hard = deepcopy(wallet.blockchain_state)
         return jsonify({'message': 'State received and updated successfully'}), 200
 
 if __name__ == '__main__':

@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 import os
 import sys
 import threading
+from copy import deepcopy
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 CAPACITY = int(os.getenv("CAPACITY"))
@@ -38,6 +39,7 @@ class Wallet:
         State will contain a dictionary of all the nodes:
         {address: {public_key, id, balance, stake} dictionaries}}
         """
+        self.blockchain_state_hard = {}
 
         self.transactions_pending = {}
         self.blockchain = Blockchain()
@@ -185,18 +187,13 @@ class Wallet:
             response = requests.post(f"http://{node_ip}:{node_port}/api/receive_transaction",
                                      data=payload,
                                      headers={'Content-Type': 'application/json'})
-            if response.status_code != 200:
-                print("Error:", response.json())
-                self.mutex.release()
-                break
-        if response.status_code == 200:
-            # If the transaction was broadcasted successfully, add it to the pending transactions list and process it
-            if transaction.sender_address != '0':
-                self.transactions_pending[transaction.transaction_id] = transaction
-            self.mutex.release()
-            self.process_transaction(transaction)
-            if len(self.transactions_pending) >= CAPACITY:
-                self.capacity_full.set()
+
+        if transaction.sender_address != '0':
+            self.transactions_pending[transaction.transaction_id] = transaction
+        self.mutex.release()
+        self.process_transaction(transaction)
+        if len(self.transactions_pending) >= CAPACITY:
+            self.capacity_full.set()
 
         return
 
@@ -247,6 +244,7 @@ class Wallet:
             return
         self.blockchain.add_block(new_block)
         self.transactions_pending = dict(list(self.transactions_pending.items())[CAPACITY:])
+        self.blockchain_state_hard = deepcopy(self.blockchain_state)
         return
 
     def broadcast_block(self, block: Block) -> bool:
