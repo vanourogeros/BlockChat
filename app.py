@@ -10,6 +10,7 @@ import json
 import requests
 import threading
 import time
+import subprocess
 from copy import deepcopy
 from dotenv import load_dotenv
 
@@ -30,6 +31,8 @@ bootstrap = ip_address == BOOTSTRAP_IP and port == BOOTSTRAP_PORT
 wallet = Wallet(ip_address, port, bootstrap)
 
 network_full = threading.Event()
+
+flag = True
 
 
 def broadcast_network_blockchain():
@@ -65,6 +68,10 @@ def broadcast_network_blockchain():
     print("All nodes have been registered and informed of the network state and blockchain.")
     print("Will now give 1000 coins to everyone.")
     give_coins_to_everyone()
+
+    # run script
+    bash_script_path = './driver.sh'
+    process = subprocess.Popen(['bash', bash_script_path])
 
 
 def give_coins_to_everyone():
@@ -144,6 +151,14 @@ def receive_transaction():
         return jsonify({"error": "Invalid signature or balance"}), 400
 
     process_incoming_transaction(transaction)
+
+    # run script
+    global flag
+    if flag:
+        flag = False
+        bash_script_path = './driver.sh'
+        process = subprocess.Popen(['bash', bash_script_path])
+
     return jsonify({"message": "Transaction processed successfully"}), 200
 
 
