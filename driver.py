@@ -20,6 +20,8 @@ def execute_commands(input_file):
 
             # Execute the command (print for demonstration)
             print(command)
+            os.system(command)
+            
 
 # Specify the input file (e.g., "trans0.txt")
 input_file = f"input/trans{sys.argv[1]}.txt"
