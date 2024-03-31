@@ -1,6 +1,10 @@
+import threading
+
+
 class Blockchain:
     def __init__(self) -> None:
         self.chain = []
+        self.lock = threading.Lock()
 
     def view_block(self) -> None:
         if len(self.chain) == 0:
@@ -14,7 +18,9 @@ class Blockchain:
         return
 
     def add_block(self, block) -> None:  # thn eftiaxa na yparxxei
+        self.lock.acquire()
         self.chain.append(block)
+        self.lock.release()
 
     def validate_chain(self) -> bool:
         curr_index = 0  # genesis block is handled in validate_block
