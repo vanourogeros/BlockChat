@@ -1,7 +1,6 @@
 from flask import Flask, jsonify, request
 from src.wallet import Wallet
 from src.block import Block
-from src.blockchain import Blockchain
 from src.transaction import Transaction, deserialize_trans
 
 import os
@@ -80,11 +79,11 @@ def give_coins_to_everyone():
     for node in wallet.blockchain_state.keys():
         if node == wallet.address:
             continue
-        transaction = Transaction(wallet.address, node, "coins", 1000,
+        transaction = Transaction(wallet.address, node, "coins", 10000,
                                   "Initial Transaction", wallet.nonce)
         wallet.broadcast_transaction(transaction)
 
-    print("All nodes have been given 1000 coins.")
+    print("All nodes have been given 10000 coins.")
 
 
 def process_incoming_transaction(transaction: Transaction):
@@ -98,8 +97,10 @@ def process_incoming_transaction(transaction: Transaction):
 
 def miner_thread_func():
     while True:
-        wallet.capacity_full.wait()
-        wallet.mine_block()
+        wallet.capacity_full.wait(timeout=0.05)
+        if len(wallet.transactions_pending) >= CAPACITY:
+            time.sleep(0.1)
+            wallet.mine_block()
         wallet.capacity_full.clear()
 
 
@@ -149,7 +150,6 @@ def receive_transaction():
     transaction = deserialize_trans(data['transaction'])
 
     if not verify_trans(transaction):
-        print("Invalid signature or balance")
         return jsonify({"error": "Invalid signature or balance"}), 400
 
     process_incoming_transaction(transaction)
@@ -174,7 +174,6 @@ def receive_block():
 
     transactions = []
     wallet.blockchain_state = deepcopy(wallet.blockchain_state_hard)
-    wallet.mutex.acquire()
     for transaction in data['transactions']:
         trans_object = deserialize_trans(transaction)
         transactions.append(trans_object)
@@ -183,11 +182,9 @@ def receive_block():
         try:
             del wallet.transactions_pending[trans_object.transaction_id]
         except KeyError:
-            continue
+            return jsonify({"message": "Transaction has not been received yet"}), 400
         except Exception:
-            wallet.mutex.release()
             return jsonify({"message": "Some error occurred"}), 400
-    wallet.mutex.release()
 
     block = Block(data['index'], data['timestamp'], transactions, data['validator'], data['previous_hash'])
 
@@ -207,14 +204,7 @@ def receive_block():
             wallet.blockchain_state[key]['balance'] += block.calculate_reward()
             break
 
-    print(f"Validator {validator} has been given {block.calculate_reward()} coins for validating the block.")
     wallet.blockchain_state_hard = deepcopy(wallet.blockchain_state)
-
-    for trans_id, trans_obj in wallet.transactions_pending.items():
-        if not verify_trans(trans_obj):
-            del wallet.transactions_pending[trans_id]
-        else:
-            wallet.process_transaction(trans_obj)
 
     return jsonify({"message": "Block received successfully"}), 200
 

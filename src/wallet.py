@@ -44,7 +44,6 @@ class Wallet:
         self.transactions_pending = {}
         self.blockchain = Blockchain()
 
-        self.mutex = threading.Lock()
         self.capacity_full = threading.Event()
 
         if bootstrap:
@@ -67,7 +66,7 @@ class Wallet:
                                      data=payload,
                                      headers={'Content-Type': 'application/json'})
             if response.status_code != 200:
-                print("Error:", response)
+                print("Error:", response.json())
                 sys.exit(1)
 
             print("Bootstrap is notified of new node.")
@@ -79,7 +78,7 @@ class Wallet:
         tran = self.create_transaction(sender_address='0',
                                        receiver_address=self.address,
                                        type_of_transaction="coins",
-                                       amount=1000 * TOTAL_NODES,
+                                       amount=10000 * TOTAL_NODES,
                                        message="Genesis block",
                                        nonce=self.nonce)
         # We don't verify the transaction because it's the genesis block, so we process it directly
@@ -126,30 +125,10 @@ class Wallet:
             fee = len(transaction.message)
             self.blockchain_state[transaction.sender_address]["balance"] -= fee
             if transaction.sender_address == self.address:
-                print(f"({self.address}) Sent a message: `{transaction.message}` for a fee of {fee} coins")
                 self.balance -= transaction.amount
-            if transaction.receiver_address == self.address:
-                print(f"({self.address}) Received a message: {transaction.message}")
 
         self.balance = round(self.balance, 3)
         return
-
-    def get_network_state(self):
-        if self.bootstrap:
-            return self.blockchain_state
-        else:
-            data = {
-                "address": self.address,
-                "public_key": self.public_key
-            }
-            payload = json.dumps(data)
-            response = requests.post(f"http://{self.ip_address}:{self.port}/api/get_network_state",
-                                     data=payload,
-                                     headers={'Content-Type': 'application/json'})
-            if response.status_code == 200:
-                return response.json()["data"]
-            else:
-                return []
 
     def register_node(self, address: str, public_key: str) -> None:
         self.blockchain_state[address] = {"public_key": public_key,
@@ -178,7 +157,6 @@ class Wallet:
         }
         payload = json.dumps(data)
         response = None
-        self.mutex.acquire()
         for node in self.blockchain_state.keys():
             if node == self.address:
                 continue
@@ -190,11 +168,9 @@ class Wallet:
 
         if transaction.sender_address != '0':
             self.transactions_pending[transaction.transaction_id] = transaction
-        self.mutex.release()
         self.process_transaction(transaction)
         if len(self.transactions_pending) >= CAPACITY:
             self.capacity_full.set()
-
         return
 
     def stake_amount(self, amount: int) -> bool:
@@ -203,7 +179,6 @@ class Wallet:
            with a receiver address of '0' 
         """
         if amount > self.balance:
-            print("Insufficient balance to stake")
             return False
 
         transaction = self.create_transaction(sender_address=self.address,
@@ -213,21 +188,13 @@ class Wallet:
                                               message="",
                                               nonce=self.nonce)
         self.broadcast_transaction(transaction)
-        print(f"({self.address}) Staked successfully {amount} coins")
         return True
 
     def mine_block(self):
-        if len(self.transactions_pending) == 0:
-            print(f"({self.address}) [INVALID BLOCK]: No transactions to mine (pending transactions list is empty)")
-            return
-
         last_block = self.blockchain.chain[-1]
         validator = self.lottery()
         if validator != self.id:
-            print(f"({self.address}) Not the winner of the lottery :(")
             return
-
-        print(f"({self.address}) Winner of the lottery! Mining a block...")
 
         new_block = Block(index=last_block.index + 1, timestamp=time.time(),
                           transactions=list(self.transactions_pending.values())[:CAPACITY], validator=validator,
@@ -236,11 +203,9 @@ class Wallet:
         broadcast_result = self.broadcast_block(new_block)
         if broadcast_result:
             reward = new_block.calculate_reward()
-            print(f"({self.address}) Block mined successfully! Received {reward} coins for mining the block.")
             self.balance += reward
             self.blockchain_state[self.address]["balance"] += reward
         else:
-            print(f"({self.address}) Block mined successfully but failed to broadcast")
             return
         self.blockchain.add_block(new_block)
         self.transactions_pending = dict(list(self.transactions_pending.items())[CAPACITY:])
@@ -262,7 +227,6 @@ class Wallet:
                 print("Error:", response.json())
                 break
         if response.status_code == 200:
-            print(f"({self.address}) Block broadcasted successfully")
             return True
         else:
             return False
