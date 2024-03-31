@@ -44,6 +44,7 @@ class Wallet:
         self.transactions_pending = {}
         self.blockchain = Blockchain()
 
+        self.total_lock = threading.Lock()
         self.capacity_full = threading.Event()
 
         if bootstrap:
@@ -145,7 +146,7 @@ class Wallet:
         transaction = Transaction(sender_address, receiver_address, type_of_transaction, amount, message, nonce)
         return transaction
 
-    def broadcast_transaction(self, transaction: Transaction) -> None:
+    def broadcast_transaction(self, transaction: Transaction) -> bool:
         # Increment the nonce of the wallet to keep track of the number of transactions
         # and prevent replay attacks/double spending
         self.nonce += 1
@@ -156,7 +157,6 @@ class Wallet:
             "transaction": transaction.serialize()
         }
         payload = json.dumps(data)
-        response = None
         for node in self.blockchain_state.keys():
             if node == self.address:
                 continue
@@ -165,13 +165,21 @@ class Wallet:
             response = requests.post(f"http://{node_ip}:{node_port}/api/receive_transaction",
                                      data=payload,
                                      headers={'Content-Type': 'application/json'})
+            if response.status_code != 200:
+                print("Error:", response.json())
+                return False
+
+        self.total_lock.acquire()
 
         if transaction.sender_address != '0':
             self.transactions_pending[transaction.transaction_id] = transaction
         self.process_transaction(transaction)
         if len(self.transactions_pending) >= CAPACITY:
             self.capacity_full.set()
-        return
+
+        self.total_lock.release()
+
+        return True
 
     def stake_amount(self, amount: int) -> bool:
         """Stake a certain amount of coins to be able to mine a block
@@ -187,14 +195,18 @@ class Wallet:
                                               amount=amount,
                                               message="",
                                               nonce=self.nonce)
-        self.broadcast_transaction(transaction)
-        return True
+        if self.broadcast_transaction(transaction):
+            return True
+        return False
 
-    def mine_block(self):
+    def mine_block(self) -> bool:
+        self.total_lock.acquire()
+
         last_block = self.blockchain.chain[-1]
         validator = self.lottery()
         if validator != self.id:
-            return
+            self.total_lock.release()
+            return True
 
         new_block = Block(index=last_block.index + 1, timestamp=time.time(),
                           transactions=list(self.transactions_pending.values())[:CAPACITY], validator=validator,
@@ -206,11 +218,15 @@ class Wallet:
             self.balance += reward
             self.blockchain_state[self.address]["balance"] += reward
         else:
-            return
+            self.total_lock.release()
+            return False
         self.blockchain.add_block(new_block)
         self.transactions_pending = dict(list(self.transactions_pending.items())[CAPACITY:])
         self.blockchain_state_hard = deepcopy(self.blockchain_state)
-        return
+
+        self.total_lock.release()
+
+        return True
 
     def broadcast_block(self, block: Block) -> bool:
         payload = block.serialize()

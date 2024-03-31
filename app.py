@@ -82,18 +82,23 @@ def give_coins_to_everyone():
         transaction = Transaction(wallet.address, node, "coins", 10000,
                                   "Initial Transaction", wallet.nonce)
         if wallet.broadcast_transaction(transaction):
-            print("All nodes have been given 10000 coins.")
+            print(f"Node {node} has been given 10000 coins.")
         else:
             print("Some error occured")
             sys.exit(1)
 
 
 def process_incoming_transaction(transaction: Transaction):
+    wallet.total_lock.acquire()
+
     if transaction.sender_address != '0':
         wallet.transactions_pending[transaction.transaction_id] = transaction
     wallet.process_transaction(transaction)
     if len(wallet.transactions_pending) >= CAPACITY:
         wallet.capacity_full.set()
+
+    wallet.total_lock.release()
+
     return
 
 
@@ -101,8 +106,10 @@ def miner_thread_func():
     while True:
         wallet.capacity_full.wait(timeout=0.05)
         if len(wallet.transactions_pending) >= CAPACITY:
-            time.sleep(0.1)
-            wallet.mine_block()
+            time.sleep(1)
+            if not wallet.mine_block():
+                print("Mining failed, exiting...")
+                sys.exit(1)
         wallet.capacity_full.clear()
 
 
@@ -158,7 +165,7 @@ def receive_transaction():
 
     # run script
     global flag
-    if flag:
+    if flag and not bootstrap:
         flag = False
         script_path = './driver.py'
         address = f"{wallet.ip_address}:{wallet.port}"
@@ -175,6 +182,9 @@ def receive_block():
         return jsonify({"error": "No JSON data provided"}), 400
 
     transactions = []
+
+    wallet.total_lock.acquire()
+
     wallet.blockchain_state = deepcopy(wallet.blockchain_state_hard)
     for transaction in data['transactions']:
         trans_object = deserialize_trans(transaction)
@@ -184,8 +194,13 @@ def receive_block():
         try:
             del wallet.transactions_pending[trans_object.transaction_id]
         except KeyError:
-            return jsonify({"message": "Transaction has not been received yet"}), 400
+            if trans_object.sender_address == "0":
+                continue
+            else:
+                wallet.total_lock.release()
+                return jsonify({"message": "Transaction has not been received yet"}), 400
         except Exception:
+            wallet.total_lock.release()
             return jsonify({"message": "Some error occurred"}), 400
 
     block = Block(data['index'], data['timestamp'], transactions, data['validator'], data['previous_hash'])
@@ -196,6 +211,7 @@ def receive_block():
         validator = wallet.lottery(data['index'])
 
     if not block.validate_block(wallet.blockchain, validator):
+        wallet.total_lock.release()
         return jsonify({"error": "Invalid block"}), 400
 
     wallet.blockchain.add_block(block)
@@ -207,6 +223,8 @@ def receive_block():
             break
 
     wallet.blockchain_state_hard = deepcopy(wallet.blockchain_state)
+
+    wallet.total_lock.release()
 
     return jsonify({"message": "Block received successfully"}), 200
 
