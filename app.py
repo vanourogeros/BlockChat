@@ -81,9 +81,11 @@ def give_coins_to_everyone():
             continue
         transaction = Transaction(wallet.address, node, "coins", 10000,
                                   "Initial Transaction", wallet.nonce)
-        wallet.broadcast_transaction(transaction)
-
-    print("All nodes have been given 10000 coins.")
+        if wallet.broadcast_transaction(transaction):
+            print("All nodes have been given 10000 coins.")
+        else:
+            print("Some error occured")
+            sys.exit(1)
 
 
 def process_incoming_transaction(transaction: Transaction):
@@ -237,9 +239,10 @@ def make_transaction():
         return jsonify({"error": "Missing parameter(s)"}), 400
 
     transaction = wallet.create_transaction(wallet.address, receiver_address, type, amount, message, wallet.nonce)
-    wallet.broadcast_transaction(transaction)
-
-    return jsonify({"message": "Transaction broadcasted successfully"}), 200
+    if wallet.broadcast_transaction(transaction):
+        return jsonify({"message": "Transaction broadcasted successfully"}), 200
+    else:
+        return jsonify({"message": "Some error occurred"}), 400
 
 
 @app.route('/api/pending_transactions', methods=['GET'])
@@ -248,24 +251,6 @@ def pending_transactions():
     for transaction in wallet.transactions_pending.values():
         transactions_list.append(transaction.serialize())
     return jsonify(transactions_list), 200
-
-
-@app.route('/api/test_transaction', methods=['GET'])
-def my_transaction():
-    """
-    Send some coins to the bootstrap node
-    """
-    receiver_address = '127.0.0.1:5000'
-    amount = int(request.args.get('amount'))
-    message = ""
-
-    if receiver_address is None or amount is None:
-        return jsonify({"error": "Missing parameter(s)"}), 400
-
-    transaction = wallet.create_transaction(wallet.address, receiver_address, "coins", amount, message, wallet.nonce)
-    wallet.broadcast_transaction(transaction)
-
-    return jsonify({"message": "Transaction broadcasted successfully"}), 200
 
 
 if bootstrap:
