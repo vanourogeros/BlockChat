@@ -41,7 +41,7 @@ class Block:
 
     def validate_block(self, blockchain: Blockchain, validator: int) -> bool:
         # For the genesis block we don't need to validate.
-        # We suppose that the genesis block has a validator value of 0
+        # We suppose that the genesis block has a validator value of -1
         if self.validator == -1:
             return True
 
