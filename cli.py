@@ -37,7 +37,7 @@ def new_message(args, base_address):
     if response.status_code != 200:
         print("Error:", response)
         return
-    print("Stake successful")
+    print("Message successful")
 
 
 def stake(args, base_address):
@@ -49,8 +49,7 @@ def stake(args, base_address):
     if response.status_code != 200:
         print("Error:", response)
         return
-    print("Message was successful")
-    print(response)
+    print("Stake was successful")
 
 
 def view(base_address):
