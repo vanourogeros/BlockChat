@@ -101,10 +101,13 @@ class Wallet:
         public_key = rsa_keypair.publickey().export_key()
         return private_key.decode(), public_key.decode()
 
-    def process_transaction(self, transaction: Transaction) -> None:
+    def process_transaction(self, transaction: Transaction, use_soft=True) -> None:
         # Case: Stake, check also self.stake
         if transaction.receiver_address == "0":
-            self.blockchain_state[transaction.sender_address]["stake"] = transaction.amount
+            if use_soft:
+                self.blockchain_state[transaction.sender_address]["stake"] = transaction.amount
+            else:
+                self.blockchain_state_hard[transaction.sender_address]["stake"] = transaction.amount
             if transaction.sender_address == self.address:
                 self.stake = transaction.amount
 
@@ -118,19 +121,31 @@ class Wallet:
 
             # Update the blockchain state balance for the sender
             if transaction.sender_address != "0":
-                self.blockchain_state[transaction.sender_address]["balance"] -= transaction.amount
+                if use_soft:
+                    self.blockchain_state[transaction.sender_address]["balance"] -= transaction.amount
+                else:
+                    self.blockchain_state_hard[transaction.sender_address]["balance"] -= transaction.amount
                 # 3% fee for the sender (the initial 1000 BCC transactions don't have a fee)
                 fee = round(transaction.amount * 0.03, 3) if transaction.message != "Initial Transaction" else 0
-                self.blockchain_state[transaction.sender_address]["balance"] -= fee
+                if use_soft:
+                    self.blockchain_state[transaction.sender_address]["balance"] -= fee
+                else:
+                    self.blockchain_state_hard[transaction.sender_address]["balance"] -= fee
                 if transaction.sender_address == self.address:
                     self.balance -= fee
 
             # Update blockchain state for receiver
-            self.blockchain_state[transaction.receiver_address]["balance"] += transaction.amount
+            if use_soft:
+                self.blockchain_state[transaction.receiver_address]["balance"] += transaction.amount
+            else:
+                self.blockchain_state_hard[transaction.receiver_address]["balance"] += transaction.amount
 
         elif transaction.type_of_transaction == "message":
             fee = len(transaction.message)
-            self.blockchain_state[transaction.sender_address]["balance"] -= fee
+            if use_soft:
+                self.blockchain_state[transaction.sender_address]["balance"] -= fee
+            else:
+                self.blockchain_state_hard[transaction.sender_address]["balance"] -= fee
             if transaction.sender_address == self.address:
                 self.balance -= transaction.amount
 
