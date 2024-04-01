@@ -89,15 +89,11 @@ def give_coins_to_everyone():
 
 
 def process_incoming_transaction(transaction: Transaction):
-    wallet.total_lock.acquire()
-
     if transaction.sender_address != '0':
         wallet.transactions_pending[transaction.transaction_id] = transaction
     wallet.process_transaction(transaction)
     if len(wallet.transactions_pending) >= CAPACITY:
         wallet.capacity_full.set()
-
-    wallet.total_lock.release()
 
     return
 
@@ -106,7 +102,7 @@ def miner_thread_func():
     while True:
         wallet.capacity_full.wait(timeout=0.05)
         if len(wallet.transactions_pending) >= CAPACITY:
-            time.sleep(1)
+            # time.sleep(1)
             if not wallet.mine_block():
                 print("Mining failed, exiting...")
                 sys.exit(1)
@@ -158,10 +154,21 @@ def receive_transaction():
 
     transaction = deserialize_trans(data['transaction'])
 
+    wallet.total_lock.acquire()
+
+    if transaction.transaction_id in wallet.transactions_missing:
+        del wallet.transactions_missing[transaction.transaction_id]
+        wallet.total_lock.release()
+        return jsonify({"message": "Transaction already processed from previous block"}), 200
+
     if not verify_trans(transaction):
+        wallet.transactions_rejected[transaction.transaction_id] = transaction
+        wallet.total_lock.release()
         return jsonify({"error": "Invalid signature or balance"}), 400
 
     process_incoming_transaction(transaction)
+
+    wallet.total_lock.release()
 
     # run script
     global flag
@@ -197,8 +204,12 @@ def receive_block():
             if trans_object.sender_address == "0":
                 continue
             else:
-                wallet.total_lock.release()
-                return jsonify({"message": "Transaction has not been received yet"}), 400
+                if trans_object.transaction_id in wallet.transactions_rejected:
+                    del wallet.transactions_rejected[trans_object.transaction_id]
+                    continue
+                else:
+                    wallet.transactions_missing[trans_object.transaction_id] = trans_object
+                    continue
         except Exception:
             wallet.total_lock.release()
             return jsonify({"message": "Some error occurred"}), 400

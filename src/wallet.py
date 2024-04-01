@@ -42,6 +42,9 @@ class Wallet:
         self.blockchain_state_hard = {}
 
         self.transactions_pending = {}
+        self.transactions_rejected = {}
+        self.transactions_missing = {}
+
         self.blockchain = Blockchain()
 
         self.total_lock = threading.Lock()
@@ -171,6 +174,11 @@ class Wallet:
 
         self.total_lock.acquire()
 
+        if transaction.transaction_id in self.transactions_missing:
+            del self.transactions_missing[transaction.transaction_id]
+            self.total_lock.release()
+            return True
+        
         if transaction.sender_address != '0':
             self.transactions_pending[transaction.transaction_id] = transaction
         self.process_transaction(transaction)
