@@ -72,7 +72,7 @@ def broadcast_network_blockchain():
     script_path = './driver.py'
     address = f"{wallet.ip_address}:{wallet.port}"
     wallet_id = str(wallet.id)
-    process = subprocess.Popen(['python', script_path, wallet_id, address])
+    process = subprocess.Popen(['python3', script_path, wallet_id, address])
 
 
 def give_coins_to_everyone():
@@ -177,7 +177,7 @@ def receive_transaction():
         script_path = './driver.py'
         address = f"{wallet.ip_address}:{wallet.port}"
         wallet_id = str(wallet.id)
-        process = subprocess.Popen(['python', script_path, wallet_id, address])
+        process = subprocess.Popen(['python3', script_path, wallet_id, address])
 
     return jsonify({"message": "Transaction processed successfully"}), 200
 
