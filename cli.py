@@ -19,7 +19,7 @@ def new_transaction(args, base_address):
         print("Error:", response)
         return
     print("Transaction was successful")
-    print(response)
+    print(response.json())
 
 
 def new_message(args, base_address):
@@ -37,6 +37,7 @@ def new_message(args, base_address):
         print("Error:", response)
         return
     print("Message successful")
+    print(response.json())
 
 
 def stake(args, base_address):
@@ -49,6 +50,7 @@ def stake(args, base_address):
         print("Error:", response)
         return
     print("Stake was successful")
+    print(response.json())
 
 
 def view(base_address):
