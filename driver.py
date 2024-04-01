@@ -24,7 +24,7 @@ def execute_commands(input_file):
             recipient_id = recipient_id - 5 if recipient_id >= 5 else recipient_id
 
             # Generate the command
-            command = f"python cli.py --address {sys.argv[2]} m {ip_dict[recipient_id]}:{port_dict[recipient_id]} \"{message}\" 2>&1 > /dev/null"
+            command = f"python3 cli.py --address {sys.argv[2]} m {ip_dict[recipient_id]}:{port_dict[recipient_id]} \"{message}\" 2>&1 > /dev/null"
 
             # Execute the command (print for demonstration)
             # print(command)
