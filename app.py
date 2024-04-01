@@ -216,6 +216,12 @@ def receive_block():
 
     block = Block(data['index'], data['timestamp'], transactions, data['validator'], data['previous_hash'])
 
+    while data['index'] != len(wallet.blockchain.chain):
+        wallet.total_lock.release()
+        wallet.received_block.wait(timeout=0.05)
+        wallet.received_block.clear()
+        wallet.total_lock.acquire()
+
     if data['previous_hash'] == '1':
         validator = 0
     else:
@@ -226,6 +232,7 @@ def receive_block():
         return jsonify({"error": "Invalid block"}), 400
 
     wallet.blockchain.add_block(block)
+    wallet.received_block.set()
 
     # update the validator balance
     for key, value in wallet.blockchain_state.items():
