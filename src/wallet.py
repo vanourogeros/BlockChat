@@ -247,8 +247,12 @@ class Wallet:
             self.total_lock.release()
             return False
         self.blockchain.add_block(new_block)
+
+        for transaction in list(self.transactions_pending.values())[:CAPACITY]:
+            self.process_transaction(transaction, False)
+        self.blockchain_state_hard[self.address]["balance"] += reward
+
         self.transactions_pending = dict(list(self.transactions_pending.items())[CAPACITY:])
-        self.blockchain_state_hard = deepcopy(self.blockchain_state)
 
         self.total_lock.release()
 

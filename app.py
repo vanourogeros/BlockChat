@@ -242,6 +242,9 @@ def receive_block():
 
     wallet.blockchain_state_hard = deepcopy(wallet.blockchain_state)
 
+    for transaction in wallet.transactions_pending.values():
+        wallet.process_transaction(transaction)
+
     wallet.total_lock.release()
 
     return jsonify({"message": "Block received successfully"}), 200
