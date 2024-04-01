@@ -1,7 +1,6 @@
 import argparse
 import requests
 import json
-import os
 
 
 def new_transaction(args, base_address):
