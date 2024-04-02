@@ -32,3 +32,11 @@ class Blockchain:
             curr_index += 1
 
         return True
+    
+    def print_block_lengths(self):
+        print("Blockchain length:", len(self.chain))
+        for block in self.chain:
+            if len(block.transactions) != 5:
+                print("Block length:", len(block.transactions))
+                print("Block transactions:", [transaction.serialize() for transaction in block.transactions])
+        return

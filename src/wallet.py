@@ -53,6 +53,12 @@ class Wallet:
         self.capacity_full = threading.Event()
         self.received_block = threading.Event()
 
+        self.transaction_history = []
+        self.processed_transactions = {}
+
+        self.received_transactions_count = 0
+        self.accepted_transactions_count = 0
+
         if bootstrap:
             self.id = 0
             self.given_id = 0
@@ -150,6 +156,10 @@ class Wallet:
                 self.balance -= transaction.amount
 
         self.balance = round(self.balance, 3)
+
+        if not use_soft:
+            self.accepted_transactions_count += 1
+
         return
 
     def register_node(self, address: str, public_key: str) -> None:
@@ -172,6 +182,21 @@ class Wallet:
         # and prevent replay attacks/double spending
         self.nonce += 1
         transaction.nonce = self.nonce
+        
+        """
+        self.transaction_history.append({
+            "nonce": transaction.nonce,
+            "transaction_id": transaction.transaction_id,
+            "sender_address": transaction.sender_address,
+            "receiver_address": transaction.receiver_address,
+            "amount": transaction.amount,
+            "type_of_transaction": transaction.type_of_transaction,
+            "message": transaction.message
+            })
+        """
+
+        self.transaction_history.append(transaction)
+
         transaction.sign_transaction(self.private_key)
 
         data = {
@@ -230,7 +255,7 @@ class Wallet:
 
         last_block = self.blockchain.chain[-1]
         validator = self.lottery()
-        if validator != self.id:
+        if validator != self.id or len(list(self.transactions_pending)) <= CAPACITY:
             self.total_lock.release()
             return True
 

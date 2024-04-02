@@ -145,6 +145,18 @@ def get_network_state():
 def get_network_state_hard():
     return jsonify(wallet.blockchain_state_hard), 200
 
+@app.route('/api/transactions_history')
+def transactions_history():
+    transactions_list = []
+    for transaction in wallet.transaction_history:
+        transactions_list.append(transaction.serialize())
+    return jsonify(transactions_list), 200
+
+@app.route('/api/transaction_counts')
+def transaction_counts():
+    wallet.blockchain.print_block_lengths()
+    return jsonify({"sent": wallet.nonce, "received": wallet.received_transactions_count, "accepted": wallet.accepted_transactions_count}), 200
+
 
 @app.route('/api/receive_transaction', methods=['POST'])
 def receive_transaction():
@@ -155,6 +167,8 @@ def receive_transaction():
     transaction = deserialize_trans(data['transaction'])
 
     wallet.total_lock.acquire()
+
+    wallet.received_transactions_count += 1
 
     if transaction.transaction_id in wallet.transactions_missing:
         del wallet.transactions_missing[transaction.transaction_id]

@@ -59,5 +59,29 @@ def check_pending():
         print("Shit is bad.")
 
 
+def transaction_counts():
+    transactions_sent = []
+    transactions_received = []
+    transactions_accepted = []
+    for ip, port in zip(ip_dict.values(), port_dict.values()):
+        url = f"http://{ip}:{port}/api/transaction_counts"
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                transactions = response.json()
+                transactions_sent.append(transactions['sent'])
+                transactions_received.append(transactions['received'])
+                transactions_accepted.append(transactions['accepted'])
+
+            else:
+                print("Error:", response.status_code)
+        except requests.exceptions.RequestException as e:
+            print("Error:", e)
+    
+    print(f"Sent: {transactions_sent}")
+    print(f"Received: {transactions_received}")
+    print(f"Validated: {transactions_accepted}")
+
 check_balance()
 check_pending()
+transaction_counts()
