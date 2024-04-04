@@ -84,7 +84,7 @@ def execute_commands(input_file):
             
 
 # Specify the input file (e.g., "trans0.txt")
-input_file = f"5nodes/trans{sys.argv[1]}.txt"
+input_file = f"5nodes/trans{sys.argv[1]}.txt" if TOTAL_NODES == 5 else f"10nodes/trans{sys.argv[1]}.txt"
 
 # if sys.argv[1] == '0':
 #     os.system(f"python cli.py --address {sys.argv[2]} stake 100")
