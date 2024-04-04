@@ -274,7 +274,7 @@ class Wallet:
             return False
         self.blockchain.add_block(new_block)
 
-        # update hard state only with the transactions that were contained inside the broadcasted block
+        # update hard state only with the transactions that were contained inside the broadcast block
         for transaction in CURRENT_BLOCK_TRANSACTIONS:
             self.process_transaction(transaction, False)
         self.blockchain_state_hard[self.address]["balance"] += reward

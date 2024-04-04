@@ -52,8 +52,6 @@ def new_message(address, receiver_address, message):
     if response.status_code != 200:
         print("Error:", response)
         return
-    print("Message successful")
-    print(response.json())
 
 
 def execute_commands(input_file):

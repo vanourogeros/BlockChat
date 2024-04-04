@@ -40,6 +40,8 @@ def broadcast_network_blockchain():
 
     time.sleep(2)
 
+    wallet.total_lock.acquire()
+
     for node in wallet.blockchain_state.keys():
         if node == wallet.address:
             continue  # We don't want to send the blockchain to the bootstrap (ourselves)
@@ -52,6 +54,7 @@ def broadcast_network_blockchain():
                                  headers={'Content-Type': 'application/json'})
         if response.status_code != 200:
             print("Error:", response.json())
+            wallet.total_lock.release()
             sys.exit(1)
 
         for block in wallet.blockchain.chain:
@@ -61,9 +64,12 @@ def broadcast_network_blockchain():
                                      headers={'Content-Type': 'application/json'})
             if response.status_code != 200:
                 print("Error:", response.json())
+                wallet.total_lock.release()
                 sys.exit(1)
 
     wallet.blockchain_state_hard = deepcopy(wallet.blockchain_state)
+
+    wallet.total_lock.release()
 
     print("All nodes have been registered and informed of the network state and blockchain.")
     print("Will now give 1000 coins to everyone.")
@@ -349,11 +355,14 @@ if bootstrap:
 if not bootstrap:
     @app.route('/api/regular/receive_state', methods=['POST'])
     def receive_state():
+        wallet.total_lock.acquire()
         data = request.get_json()
         if data is None:
+            wallet.total_lock.release()
             return jsonify({"error": "No JSON data provided"}), 400
         wallet.blockchain_state = data
         wallet.blockchain_state_hard = deepcopy(wallet.blockchain_state)
+        wallet.total_lock.release()
         return jsonify({'message': 'State received and updated successfully'}), 200
 
 if __name__ == '__main__':
