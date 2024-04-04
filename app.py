@@ -338,6 +338,15 @@ def rejected_transactions():
     return jsonify(transactions_list), 200
 
 
+@app.route('/api/missing_transactions', methods=['GET'])
+def missing_transactions():
+    transactions_list = []
+    for transaction in wallet.transactions_missing.values():
+        transactions_list.append(transaction.serialize())
+    transactions_list.append(len(wallet.transactions_missing))
+    return jsonify(transactions_list), 200
+
+
 if bootstrap:
     broadcast_thread = threading.Thread(target=broadcast_network_blockchain).start()
 
