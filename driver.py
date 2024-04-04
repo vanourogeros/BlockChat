@@ -29,11 +29,15 @@ def new_message(address, receiver_address, message):
     print("Message successful")
     print(response.json())
 
+
 def execute_commands(input_file):
     # Read the content of the input file
     with open(input_file, "r") as f:
+        tx_counter += 0
+        start = time.time()
         for line in f:
             recipient_id, *message_parts = line.strip().split(" ", 1)
+            tx_counter += 1
             message = " ".join(message_parts)
 
             # Determine the recipient ID
@@ -46,11 +50,13 @@ def execute_commands(input_file):
             command = f"python3 cli.py --address {sys.argv[2]} m {ip_dict[recipient_id]}:{port_dict[recipient_id]} \"{message}\" 2>&1 > /dev/null"
 
             # Execute the command (print for demonstration)
-            print(command)
-            #os.system(command)
-            new_message(f"{sys.argv[2]}", f"{ip_dict[recipient_id]}:{port_dict[recipient_id]}", message)
-            # time.sleep(0.1)
-
+            # print(command)
+            os.system(command)
+            # new_message(f"{sys.argv[2]}", f"{ip_dict[recipient_id]}:{port_dict[recipient_id]}", message)
+    end = time.time()
+    elapsed_time = end - start
+    print(f"\nSent {tx_counter} transactions in {elapsed_time} s.\n")
+            
 
 # Specify the input file (e.g., "trans0.txt")
 input_file = f"5nodes/trans{sys.argv[1]}.txt"

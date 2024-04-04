@@ -82,6 +82,7 @@ def check_pending():
     else:
         print("Shit is bad.")
 
+
 def transaction_counts():
     transactions_sent = []
     transactions_received = []
@@ -100,11 +101,10 @@ def transaction_counts():
                 print("Error:", response.status_code)
         except requests.exceptions.RequestException as e:
             print("Error:", e)
-    
+
     print(f"Sent: {transactions_sent}")
     print(f"Received: {transactions_received}")
     print(f"Validated: {transactions_accepted}")
-
 
 
 def calc_reward_from_pending(totals):

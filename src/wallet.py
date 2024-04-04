@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 import os
 import sys
 import threading
-from copy import deepcopy
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 CAPACITY = int(os.getenv("CAPACITY"))
@@ -182,18 +181,6 @@ class Wallet:
         # and prevent replay attacks/double spending
         self.nonce += 1
         transaction.nonce = self.nonce
-        
-        """
-        self.transaction_history.append({
-            "nonce": transaction.nonce,
-            "transaction_id": transaction.transaction_id,
-            "sender_address": transaction.sender_address,
-            "receiver_address": transaction.receiver_address,
-            "amount": transaction.amount,
-            "type_of_transaction": transaction.type_of_transaction,
-            "message": transaction.message
-            })
-        """
 
         self.transaction_history.append(transaction)
 
