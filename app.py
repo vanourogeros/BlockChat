@@ -19,6 +19,7 @@ BOOTSTRAP_IP = os.getenv("BOOTSTRAP_IP")  # 127.0.0.1
 BOOTSTRAP_PORT = int(os.getenv("BOOTSTRAP_PORT"))  # 5000
 TOTAL_NODES = int(os.getenv("TOTAL_NODES"))
 CAPACITY = int(os.getenv("CAPACITY"))
+INITIAL_COINS = int(os.getenv("INITIAL_COINS")) # 1000
 
 app = Flask(__name__)
 
@@ -79,10 +80,10 @@ def give_coins_to_everyone():
     for node in wallet.blockchain_state.keys():
         if node == wallet.address:
             continue
-        transaction = Transaction(wallet.address, node, "coins", 10000,
+        transaction = Transaction(wallet.address, node, "coins", INITIAL_COINS,
                                   "Initial Transaction", wallet.nonce)
         if wallet.broadcast_transaction(transaction):
-            print(f"Node {node} has been given 10000 coins.")
+            print(f"Node {node} has been given {INITIAL_COINS} coins.")
         else:
             print("Some error occured")
             sys.exit(1)

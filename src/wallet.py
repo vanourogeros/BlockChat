@@ -19,6 +19,7 @@ CAPACITY = int(os.getenv("CAPACITY"))
 TOTAL_NODES = int(os.getenv("TOTAL_NODES"))
 BOOTSTRAP_IP = os.getenv("BOOTSTRAP_IP")  # 127.0.0.1
 BOOTSTRAP_PORT = int(os.getenv("BOOTSTRAP_PORT"))  # 5000
+INITIAL_COINS = int(os.getenv("INITIAL_COINS")) # 1000
 
 
 class Wallet:
@@ -90,7 +91,7 @@ class Wallet:
         tran = self.create_transaction(sender_address='0',
                                        receiver_address=self.address,
                                        type_of_transaction="coins",
-                                       amount=10000 * TOTAL_NODES,
+                                       amount=INITIAL_COINS * TOTAL_NODES,
                                        message="Genesis block",
                                        nonce=self.nonce)
         # We don't verify the transaction because it's the genesis block, so we process it directly

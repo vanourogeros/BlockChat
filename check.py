@@ -1,11 +1,41 @@
 import requests
 import json
+import os
+import sys
+from dotenv import load_dotenv
 
-# ip_dict = {0: '192.168.1.1', 1: '192.168.1.2', 2: '192.168.1.3', 3: '192.168.1.4', 4: '192.168.1.5', 5: '192.168.1.1',
-#            6: '192.168.1.2', 7: '192.168.1.3', 8: '192.168.1.4', 9: '192.168.1.5', 10: '192.168'}
-# port_dict = {0: 5000, 1: 5000, 2: 5000, 3: 5000, 4: 5000, 5: 5001, 6: 5001, 7: 5001, 8: 5001, 9: 5001}
-ip_dict = {0: '127.0.0.1', 1: '127.0.0.1', 2: '127.0.0.1', 3: '127.0.0.1', 4: '127.0.0.1'}
-port_dict = {0: 5000, 1: 5001, 2: 5002, 3: 5003, 4: 5004}
+load_dotenv()
+INITIAL_COINS = int(os.getenv("INITIAL_COINS"))
+TOTAL_NODES = int(os.getenv("TOTAL_NODES"))
+BOOTSTRAP_IP = os.getenv("BOOTSTRAP_IP")
+
+TOTAL_BALANCE = INITIAL_COINS * TOTAL_NODES
+
+if TOTAL_NODES == 5 and BOOTSTRAP_IP == '192.168.1.1':
+    # Case of 5 nodes in a private network of 5 machines
+    ip_dict = {0: '192.168.1.1', 1: '192.168.1.2', 2: '192.168.1.3', 3: '192.168.1.4', 4: '192.168.1.5'}
+    port_dict = {0: 5000, 1: 5000, 2: 5000, 3: 5000, 4: 5000}
+
+elif TOTAL_NODES == 10 and BOOTSTRAP_IP == '192.168.1.1':
+    # Case of 10 nodes in a private network of 5 machines
+    ip_dict = {0: '192.168.1.1', 1: '192.168.1.2', 2: '192.168.1.3', 3: '192.168.1.4', 4: '192.168.1.5', 5: '192.168.1.1',
+            6: '192.168.1.2', 7: '192.168.1.3', 8: '192.168.1.4', 9: '192.168.1.5', 10: '192.168'}
+    port_dict = {0: 5000, 1: 5000, 2: 5000, 3: 5000, 4: 5000, 5: 5001, 6: 5001, 7: 5001, 8: 5001, 9: 5001}
+
+elif TOTAL_NODES == 5 and BOOTSTRAP_IP == '127.0.0.1':
+    # Case of 5 nodes in 1 machine
+    ip_dict = {0: '127.0.0.1', 1: '127.0.0.1', 2: '127.0.0.1', 3: '127.0.0.1', 4: '127.0.0.1'}
+    port_dict = {0: 5000, 1: 5001, 2: 5002, 3: 5003, 4: 5004}
+
+elif TOTAL_NODES == 10 and BOOTSTRAP_IP == '127.0.0.1':
+    # Case of 10 nodes in 1 machine
+    ip_dict = {0: '127.0.0.1', 1: '127.0.0.1', 2: '127.0.0.1', 3: '127.0.0.1', 4: '127.0.0.1', 5: '127.0.0.1',
+               6: '127.0.0.1', 7: '127.0.0.1', 8: '127.0.0.1', 9: '127.0.0.1', 10: '127.0.0.1'}
+    port_dict = {0: 5000, 1: 5001, 2: 5002, 3: 5003, 4: 5004, 5: 5005, 6: 5006, 7: 5007, 8: 5008, 9: 5009, 10: 5010}
+
+else:
+    print("Invalid configuration. Please check the TOTAL_NODES and BOOTSTRAP_IP in the .env file.")
+    sys.exit(1)
 
 
 def check_balance_hard():
@@ -24,10 +54,10 @@ def check_balance_hard():
         except requests.exceptions.RequestException as e:
             print("Error:", e)
 
-    if all(value == 50000.0 for value in totals):
-        print("Balances from hard state are all 50000.")
+    if all(value == TOTAL_BALANCE for value in totals):
+        print(f"Balances from hard state are all {TOTAL_BALANCE}.")
     elif all(value == totals[0] for value in totals):
-        print(f"Balances from hard state are all the same but NOT 50000 ({totals[0]}).")
+        print(f"Balances from hard state are all the same but NOT {TOTAL_BALANCE} ({totals[0]}).")
     else:
         print(f"Balances from hard state are NOT good: {totals}.")
 
@@ -124,10 +154,10 @@ def calc_reward_from_pending(totals):
             print("Error:", e)
 
     new_totals = [x + y for x, y in zip(totals, rewards)]
-    if all(value == 50000.0 for value in new_totals):
-        print("Balances from soft state are 50000 - reward from pending.")
+    if all(value == TOTAL_BALANCE * 1.0 for value in new_totals):
+        print(f"Balances from soft state are {TOTAL_BALANCE} - reward from pending.")
     else:
-        print("Balances from soft state are NOT 50000 - reward from pending.")
+        print(f"Balances from soft state are NOT {TOTAL_BALANCE} - reward from pending.")
 
 
 check_pending()
