@@ -51,8 +51,8 @@ def execute_commands(input_file):
 
             # Execute the command (print for demonstration)
             # print(command)
-            os.system(command)
-            # new_message(f"{sys.argv[2]}", f"{ip_dict[recipient_id]}:{port_dict[recipient_id]}", message)
+            #os.system(command)
+            new_message(f"{sys.argv[2]}", f"{ip_dict[recipient_id]}:{port_dict[recipient_id]}", message)
     end = time.time()
     elapsed_time = end - start
     print(f"\nSent {tx_counter} transactions in {elapsed_time} s.\n")
