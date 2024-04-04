@@ -252,6 +252,7 @@ class Wallet:
 
     def mine_block(self) -> bool:
         self.total_lock.acquire()
+        CURRENT_BLOCK_TRANSACTIONS = list(self.transactions_pending.values())[:CAPACITY]
 
         last_block = self.blockchain.chain[-1]
         validator = self.lottery()
@@ -260,7 +261,7 @@ class Wallet:
             return True
 
         new_block = Block(index=last_block.index + 1, timestamp=time.time(),
-                          transactions=list(self.transactions_pending.values())[:CAPACITY], validator=validator,
+                          transactions=CURRENT_BLOCK_TRANSACTIONS, validator=validator,
                           previous_hash=last_block.current_hash)
 
         broadcast_result = self.broadcast_block(new_block)
@@ -273,7 +274,7 @@ class Wallet:
             return False
         self.blockchain.add_block(new_block)
 
-        for transaction in list(self.transactions_pending.values())[:CAPACITY]:
+        for transaction in CURRENT_BLOCK_TRANSACTIONS:
             self.process_transaction(transaction, False)
         self.blockchain_state_hard[self.address]["balance"] += reward
 
