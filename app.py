@@ -231,6 +231,12 @@ def receive_block():
         transactions.append(trans_object)
         if trans_object.sender_address != '0':
             wallet.process_transaction(trans_object)
+            file_path = f"{wallet.id}-trans.txt"
+            with open(file_path, 'a') as file:
+                file.write(f"{trans_object.sender_address} - {trans_object.nonce}\n")
+            file_path = f"{wallet.id}-trans-place.txt"
+            with open(file_path, 'a') as file:
+                file.write(f"{trans_object.sender_address} - {trans_object.nonce} FROM RECEIVE_BLOCK\n")
         try:
             del wallet.transactions_pending[trans_object.transaction_id]
         except KeyError:
@@ -250,6 +256,9 @@ def receive_block():
     block = Block(data['index'], data['timestamp'], transactions, data['validator'], data['previous_hash'])
 
     # If a block has been received out of order, wait until the previous block has been added.
+    # First, save the current pending list, before releasing the lock
+    current_pending = deepcopy(wallet.transactions_pending)
+    current_soft_state = deepcopy(wallet.blockchain_state)
     while data['index'] != len(wallet.blockchain.chain):
         wallet.total_lock.release()
         wallet.received_block.wait(timeout=0.05)
@@ -269,16 +278,25 @@ def receive_block():
     wallet.received_block.set()
 
     # update the validator balance
+    key_validator = None
     for key, value in wallet.blockchain_state.items():
         if value['id'] == validator:
+            file_path = f"{wallet.id}-trans.txt"
+            with open(file_path, 'a') as file:
+                file.write(f"{key} is given {block.calculate_reward()}\n")
+            file_path = f"{wallet.id}-trans-place.txt"
+            with open(file_path, 'a') as file:
+                file.write(f"{key} is given {block.calculate_reward()} FROM RECEIVE_BLOCK\n")
             wallet.blockchain_state[key]['balance'] += block.calculate_reward()
+            key_validator = key
             break
 
-    wallet.blockchain_state_hard = deepcopy(wallet.blockchain_state)
+    wallet.blockchain_state_hard = deepcopy(current_soft_state)
+    wallet.blockchain_state_hard[key_validator]['balance'] += block.calculate_reward()
 
     # Process again the remaining pending transactions because their effect has been canceled,
     # when soft_state became hard_state.
-    for transaction in wallet.transactions_pending.values():
+    for transaction in current_pending.values():
         wallet.process_transaction(transaction)
 
     wallet.total_lock.release()
@@ -358,9 +376,9 @@ def print_block_lengths():
         for block in wallet.blockchain.chain:
             file.write(f"\n\nBLOCK {block.index}\n")
             for transaction in block.transactions:
-                file.write(f"{transaction.sender_address} - {transaction.nonce}")
+                file.write(f"{transaction.sender_address} - {transaction.nonce}\n")
             file.write("\n")
-        return
+        return jsonify({"message": "All good"}), 200
 
 
 if bootstrap:

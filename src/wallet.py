@@ -277,6 +277,19 @@ class Wallet:
         # update hard state only with the transactions that were contained inside the broadcast block
         for transaction in CURRENT_BLOCK_TRANSACTIONS:
             self.process_transaction(transaction, False)
+            file_path = f"{self.id}-trans.txt"
+            with open(file_path, 'a') as file:
+                file.write(f"{transaction.sender_address} - {transaction.nonce}\n")
+            file_path = f"{self.id}-trans-place.txt"
+            with open(file_path, 'a') as file:
+                file.write(f"{transaction.sender_address} - {transaction.nonce} FROM MINE_BLOCK\n")
+
+        file_path = f"{self.id}-trans.txt"
+        with open(file_path, 'a') as file:
+            file.write(f"{self.address} is given {reward}\n")
+        file_path = f"{self.id}-trans-place.txt"
+        with open(file_path, 'a') as file:
+            file.write(f"{self.address} is given {reward} FROM MINE_BLOCK\n")
         self.blockchain_state_hard[self.address]["balance"] += reward
 
         self.transactions_pending = dict(list(self.transactions_pending.items())[CAPACITY:])
