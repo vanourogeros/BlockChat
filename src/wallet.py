@@ -19,7 +19,7 @@ CAPACITY = int(os.getenv("CAPACITY"))
 TOTAL_NODES = int(os.getenv("TOTAL_NODES"))
 BOOTSTRAP_IP = os.getenv("BOOTSTRAP_IP")  # 127.0.0.1
 BOOTSTRAP_PORT = int(os.getenv("BOOTSTRAP_PORT"))  # 5000
-INITIAL_COINS = int(os.getenv("INITIAL_COINS")) # 1000
+INITIAL_COINS = int(os.getenv("INITIAL_COINS"))  # 1000
 
 
 class Wallet:
@@ -34,28 +34,37 @@ class Wallet:
         self.nonce = 0  # counter for the number of transactions
         self.private_key, self.public_key = self.generate_wallet()
 
-        self.blockchain_state = {}
+        self.blockchain_state = {}  # soft state
         """
         State will contain a dictionary of all the nodes:
         {address: {public_key, id, balance, stake} dictionaries}}
         """
-        self.blockchain_state_hard = {}
+        self.blockchain_state_hard = {}  # hard state
 
-        self.transactions_pending = {}
-        self.transactions_rejected = {}
+        self.transactions_pending = {}  # received transactions that have not been added to a block yet
+        self.transactions_rejected = {}  # rejected transactions
+        # missing transaction: transactions that were contained in a received block
+        # but we have not yet received them individually
         self.transactions_missing = {}
 
-        self.pending_blocks = {}
+        self.pending_blocks = {}  # list of blocks that have been received out of order
 
         self.blockchain = Blockchain()
 
+        # lock that protects shared resources of the wallet object from race conditions
+        # due to simultaneous access from multiple threads
         self.total_lock = threading.Lock()
+        # event that is set when the received (and pending) transactions exceed the capacity of the blocks
         self.capacity_full = threading.Event()
+        # event that is set whenever a block is added to the chain,
+        # in order to check if out of order blocks can now be added
         self.received_block = threading.Event()
 
+        # for debugging purposes
         self.transaction_history = []
         self.processed_transactions = {}
 
+        # for debugging purposes
         self.received_transactions_count = 0
         self.accepted_transactions_count = 0
 
@@ -205,6 +214,8 @@ class Wallet:
 
         self.total_lock.acquire()
 
+        # If, before we add our own transaction to pending list, we receive it from a block, it will be in missing list
+        # Then, do not process it, just return.
         if transaction.transaction_id in self.transactions_missing:
             del self.transactions_missing[transaction.transaction_id]
             self.total_lock.release()
@@ -244,6 +255,7 @@ class Wallet:
 
         last_block = self.blockchain.chain[-1]
         validator = self.lottery()
+        # recheck if there are enough transactions because the miner thread might wake up due to timeout
         if validator != self.id or len(list(self.transactions_pending)) <= CAPACITY:
             self.total_lock.release()
             return True
@@ -262,6 +274,7 @@ class Wallet:
             return False
         self.blockchain.add_block(new_block)
 
+        # update hard state only with the transactions that were contained inside the broadcasted block
         for transaction in CURRENT_BLOCK_TRANSACTIONS:
             self.process_transaction(transaction, False)
         self.blockchain_state_hard[self.address]["balance"] += reward
