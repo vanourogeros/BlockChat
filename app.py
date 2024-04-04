@@ -167,7 +167,6 @@ def transactions_history():
 # For debugging purposes
 @app.route('/api/transaction_counts')
 def transaction_counts():
-    wallet.blockchain.print_block_lengths()
     return jsonify({"sent": wallet.nonce, "received": wallet.received_transactions_count,
                     "accepted": wallet.accepted_transactions_count}), 200
 
@@ -345,6 +344,23 @@ def missing_transactions():
         transactions_list.append(transaction.serialize())
     transactions_list.append(len(wallet.transactions_missing))
     return jsonify(transactions_list), 200
+
+
+@app.route('/api/print_block_lengths', methods=['GET'])
+def print_block_lengths():
+    file_path = f"{wallet.id}.txt"
+    with open(file_path, 'w') as file:
+        file.write(f"Blockchain length: {len(wallet.blockchain.chain)}")
+        for block in wallet.blockchain.chain:
+            if len(block.transactions) != CAPACITY:
+                file.write(f"Block length: {len(block.transactions)}")
+
+        for block in wallet.blockchain.chain:
+            file.write(f"\n\nBLOCK {block.index}\n")
+            for transaction in block.transactions:
+                file.write(f"{transaction.sender_address} - {transaction.nonce}")
+            file.write("\n")
+        return
 
 
 if bootstrap:

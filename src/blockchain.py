@@ -37,17 +37,3 @@ class Blockchain:
             curr_index += 1
 
         return True
-
-    # For debugging purposes
-    def print_block_lengths(self):
-        print("Blockchain length:", len(self.chain))
-        for block in self.chain:
-            if len(block.transactions) != CAPACITY:
-                print("Block length:", len(block.transactions))
-
-        for block in self.chain:
-            print(f"\n\nBLOCK {block.index}\n")
-            for transaction in block.transactions:
-                print(f"{transaction.sender_address} - {transaction.nonce}")
-            print()
-        return
