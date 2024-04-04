@@ -19,7 +19,7 @@ BOOTSTRAP_IP = os.getenv("BOOTSTRAP_IP")  # 127.0.0.1
 BOOTSTRAP_PORT = int(os.getenv("BOOTSTRAP_PORT"))  # 5000
 TOTAL_NODES = int(os.getenv("TOTAL_NODES"))
 CAPACITY = int(os.getenv("CAPACITY"))
-INITIAL_COINS = int(os.getenv("INITIAL_COINS")) # 1000
+INITIAL_COINS = int(os.getenv("INITIAL_COINS"))  # 1000
 
 app = Flask(__name__)
 
@@ -85,7 +85,7 @@ def give_coins_to_everyone():
         if wallet.broadcast_transaction(transaction):
             print(f"Node {node} has been given {INITIAL_COINS} coins.")
         else:
-            print("Some error occured")
+            print("Some error occurred")
             sys.exit(1)
 
 
@@ -100,10 +100,12 @@ def process_incoming_transaction(transaction: Transaction):
 
 
 def miner_thread_func():
+    """
+    We use a separate thread for mining that wakes up when an event is set (with timeout for solving lost-wakeup problem).
+    """
     while True:
         wallet.capacity_full.wait(timeout=0.05)
         if len(wallet.transactions_pending) >= CAPACITY:
-            # time.sleep(1)
             if not wallet.mine_block():
                 print("Mining failed, exiting...")
                 sys.exit(1)
@@ -147,6 +149,7 @@ def get_network_state_hard():
     return jsonify(wallet.blockchain_state_hard), 200
 
 
+# For debugging purposes
 @app.route('/api/transactions_history')
 def transactions_history():
     transactions_list = []
@@ -155,6 +158,7 @@ def transactions_history():
     return jsonify(transactions_list), 200
 
 
+# For debugging purposes
 @app.route('/api/transaction_counts')
 def transaction_counts():
     wallet.blockchain.print_block_lengths()
@@ -202,6 +206,9 @@ def receive_transaction():
 
 @app.route('/api/receive_block', methods=['POST'])
 def receive_block():
+    """
+    Receive a block and update hard_state with the transactions contained inside it.
+    """
     data = request.json
     if data is None:
         return jsonify({"error": "No JSON data provided"}), 400
@@ -212,6 +219,9 @@ def receive_block():
 
     wallet.blockchain_state = deepcopy(wallet.blockchain_state_hard)
     for transaction in data['transactions']:
+        # If a transaction has been already received, remove it from transactions_pending.
+        # Else, check if it has been rejected. If yes, remove it from the rejected list (validator forces acceptance).
+        # If not, add it to missing transactions (have not received it yet)
         trans_object = deserialize_trans(transaction)
         transactions.append(trans_object)
         if trans_object.sender_address != '0':
@@ -234,6 +244,7 @@ def receive_block():
 
     block = Block(data['index'], data['timestamp'], transactions, data['validator'], data['previous_hash'])
 
+    # If a block has been received out of order, wait until the previous block has been added.
     while data['index'] != len(wallet.blockchain.chain):
         wallet.total_lock.release()
         wallet.received_block.wait(timeout=0.05)
@@ -260,6 +271,8 @@ def receive_block():
 
     wallet.blockchain_state_hard = deepcopy(wallet.blockchain_state)
 
+    # Process again the remaining pending transactions because their effect has been canceled,
+    # when soft_state became hard_state.
     for transaction in wallet.transactions_pending.values():
         wallet.process_transaction(transaction)
 
