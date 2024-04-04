@@ -17,8 +17,9 @@ if TOTAL_NODES == 5 and BOOTSTRAP_IP == '192.168.1.1':
 
 elif TOTAL_NODES == 10 and BOOTSTRAP_IP == '192.168.1.1':
     # Case of 10 nodes in a private network of 5 machines
-    ip_dict = {0: '192.168.1.1', 1: '192.168.1.2', 2: '192.168.1.3', 3: '192.168.1.4', 4: '192.168.1.5', 5: '192.168.1.1',
-            6: '192.168.1.2', 7: '192.168.1.3', 8: '192.168.1.4', 9: '192.168.1.5', 10: '192.168'}
+    ip_dict = {0: '192.168.1.1', 1: '192.168.1.2', 2: '192.168.1.3', 3: '192.168.1.4', 4: '192.168.1.5',
+               5: '192.168.1.1',
+               6: '192.168.1.2', 7: '192.168.1.3', 8: '192.168.1.4', 9: '192.168.1.5', 10: '192.168'}
     port_dict = {0: 5000, 1: 5000, 2: 5000, 3: 5000, 4: 5000, 5: 5001, 6: 5001, 7: 5001, 8: 5001, 9: 5001}
 
 elif TOTAL_NODES == 5 and BOOTSTRAP_IP == '127.0.0.1':
@@ -71,17 +72,11 @@ def execute_commands(input_file):
             # Determine the port based on recipient ID
             recipient_id = recipient_id - 5 if recipient_id >= 5 else recipient_id
 
-            # Generate the command
-            command = f"python3 cli.py --address {sys.argv[2]} m {ip_dict[recipient_id]}:{port_dict[recipient_id]} \"{message}\" 2>&1 > /dev/null"
-
-            # Execute the command (print for demonstration)
-            # print(command)
-            #os.system(command)
             new_message(f"{sys.argv[2]}", f"{ip_dict[recipient_id]}:{port_dict[recipient_id]}", message)
     end = time.time()
     elapsed_time = end - start
     print(f"\nSent {tx_counter} transactions in {elapsed_time} s.\n")
-            
+
 
 # Specify the input file (e.g., "trans0.txt")
 input_file = f"5nodes/trans{sys.argv[1]}.txt" if TOTAL_NODES == 5 else f"10nodes/trans{sys.argv[1]}.txt"

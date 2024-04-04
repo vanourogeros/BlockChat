@@ -1,4 +1,9 @@
 import threading
+from dotenv import load_dotenv
+import os
+
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+CAPACITY = int(os.getenv("CAPACITY"))
 
 
 class Blockchain:
@@ -17,7 +22,7 @@ class Blockchain:
             print(tran)
         return
 
-    def add_block(self, block) -> None:  # thn eftiaxa na yparxxei
+    def add_block(self, block) -> None:
         self.lock.acquire()
         self.chain.append(block)
         self.lock.release()
@@ -32,11 +37,11 @@ class Blockchain:
             curr_index += 1
 
         return True
-    
+
+    # For debugging purposes
     def print_block_lengths(self):
         print("Blockchain length:", len(self.chain))
         for block in self.chain:
-            if len(block.transactions) != 5:
+            if len(block.transactions) != CAPACITY:
                 print("Block length:", len(block.transactions))
-                print("Block transactions:", [transaction.serialize() for transaction in block.transactions])
         return
