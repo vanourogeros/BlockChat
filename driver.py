@@ -33,7 +33,7 @@ def new_message(address, receiver_address, message):
 def execute_commands(input_file):
     # Read the content of the input file
     with open(input_file, "r") as f:
-        tx_counter += 0
+        tx_counter = 0
         start = time.time()
         for line in f:
             recipient_id, *message_parts = line.strip().split(" ", 1)
