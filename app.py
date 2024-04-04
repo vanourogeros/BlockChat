@@ -329,6 +329,14 @@ def pending_transactions():
     return jsonify(transactions_list), 200
 
 
+@app.route('/api/rejected_transactions', methods=['GET'])
+def rejected_transactions():
+    transactions_list = []
+    for transaction in wallet.transactions_rejected.values():
+        transactions_list.append(transaction.serialize())
+    return jsonify(transactions_list), 200
+
+
 if bootstrap:
     broadcast_thread = threading.Thread(target=broadcast_network_blockchain).start()
 
