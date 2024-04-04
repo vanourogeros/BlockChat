@@ -334,6 +334,7 @@ def rejected_transactions():
     transactions_list = []
     for transaction in wallet.transactions_rejected.values():
         transactions_list.append(transaction.serialize())
+    transactions_list.append(len(wallet.transactions_rejected))
     return jsonify(transactions_list), 200
 
 
