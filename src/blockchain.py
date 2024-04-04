@@ -44,4 +44,10 @@ class Blockchain:
         for block in self.chain:
             if len(block.transactions) != CAPACITY:
                 print("Block length:", len(block.transactions))
+
+        for block in self.chain:
+            print(f"\n\nBLOCK {block.index}\n")
+            for transaction in block.transactions:
+                print(f"{transaction.sender_address} - {transaction.nonce}")
+            print()
         return
