@@ -20,8 +20,9 @@ BOOTSTRAP_PORT = int(os.getenv("BOOTSTRAP_PORT"))  # 5000
 TOTAL_NODES = int(os.getenv("TOTAL_NODES"))
 CAPACITY = int(os.getenv("CAPACITY"))
 INITIAL_COINS = int(os.getenv("INITIAL_COINS"))  # 1000
+PRINT_TRANS = int(os.getenv("PRINT_TRANS")) # for printing
 
-app = Flask(__name__)
+app = Flask('BlockChat')
 
 ip_address = sys.argv[1]
 port = int(sys.argv[2])
@@ -231,12 +232,13 @@ def receive_block():
         transactions.append(trans_object)
         if trans_object.sender_address != '0':
             wallet.process_transaction(trans_object)
-            file_path = f"{wallet.id}-trans.txt"
-            with open(file_path, 'a') as file:
-                file.write(f"{trans_object.sender_address} - {trans_object.nonce}\n")
-            file_path = f"{wallet.id}-trans-place.txt"
-            with open(file_path, 'a') as file:
-                file.write(f"{trans_object.sender_address} - {trans_object.nonce} FROM RECEIVE_BLOCK\n")
+            if PRINT_TRANS == 1:
+                file_path = f"{wallet.id}-trans.txt"
+                with open(file_path, 'a') as file:
+                    file.write(f"{trans_object.sender_address} - {trans_object.nonce}\n")
+                file_path = f"{wallet.id}-trans-place.txt"
+                with open(file_path, 'a') as file:
+                    file.write(f"{trans_object.sender_address} - {trans_object.nonce} FROM RECEIVE_BLOCK\n")
         try:
             del wallet.transactions_pending[trans_object.transaction_id]
         except KeyError:
@@ -281,13 +283,14 @@ def receive_block():
     key_validator = None
     for key, value in wallet.blockchain_state.items():
         if value['id'] == validator:
-            file_path = f"{wallet.id}-trans.txt"
-            with open(file_path, 'a') as file:
-                file.write(f"{key} is given {block.calculate_reward()}\n")
-            file_path = f"{wallet.id}-trans-place.txt"
-            with open(file_path, 'a') as file:
-                file.write(f"{key} is given {block.calculate_reward()} FROM RECEIVE_BLOCK\n")
-            wallet.blockchain_state[key]['balance'] += block.calculate_reward()
+            if PRINT_TRANS == 1 :
+                file_path = f"{wallet.id}-trans.txt"
+                with open(file_path, 'a') as file:
+                    file.write(f"{key} is given {block.calculate_reward()}\n")
+                file_path = f"{wallet.id}-trans-place.txt"
+                with open(file_path, 'a') as file:
+                    file.write(f"{key} is given {block.calculate_reward()} FROM RECEIVE_BLOCK\n")
+                wallet.blockchain_state[key]['balance'] += block.calculate_reward()
             key_validator = key
             break
 

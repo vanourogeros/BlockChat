@@ -8,6 +8,7 @@ load_dotenv()
 INITIAL_COINS = int(os.getenv("INITIAL_COINS"))
 TOTAL_NODES = int(os.getenv("TOTAL_NODES"))
 BOOTSTRAP_IP = os.getenv("BOOTSTRAP_IP")
+PRINT_BLOCKCHAIN = int(os.getenv("PRINT_BLOCKCHAIN"))  # 1 for printing
 
 TOTAL_BALANCE = INITIAL_COINS * TOTAL_NODES
 
@@ -176,4 +177,5 @@ check_balance_hard()
 soft_totals = check_balance_soft()
 calc_reward_from_pending(soft_totals)
 transaction_counts()
-get_blockchain()
+if PRINT_BLOCKCHAIN ==1:
+    get_blockchain()
