@@ -290,7 +290,7 @@ def receive_block():
                 file_path = f"{wallet.id}-trans-place.txt"
                 with open(file_path, 'a') as file:
                     file.write(f"{key} is given {block.calculate_reward()} FROM RECEIVE_BLOCK\n")
-                wallet.blockchain_state[key]['balance'] += block.calculate_reward()
+            wallet.blockchain_state[key]['balance'] += block.calculate_reward()
             key_validator = key
             break
 
