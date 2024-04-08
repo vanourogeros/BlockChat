@@ -63,7 +63,12 @@ class Transaction:
         return verifier.verify(hash_obj, bytes.fromhex(self.signature))
 
     def verify_balance(self, sender_balance: int, stake: int) -> bool:
-        return self.amount <= sender_balance - stake
+        paid_amount = 1.03 * self.amount if self.type_of_transaction == "coins" else len(self.message)
+        if paid_amount <= sender_balance - stake:
+            return True
+        else:
+            print(f"Insufficient balance - Balance: {sender_balance}. Amount: {self.amount}. Stake: {stake}.")
+            return False
 
     def serialize(self) -> str:
         transaction = {
