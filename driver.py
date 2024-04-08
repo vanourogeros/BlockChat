@@ -67,9 +67,6 @@ def execute_commands(input_file):
             # Determine the recipient ID
             recipient_id = int(recipient_id[2:])
 
-            # Determine the port based on recipient ID
-            recipient_id = recipient_id - 5 if recipient_id >= 5 else recipient_id
-
             new_message(f"{sys.argv[2]}", f"{ip_dict[recipient_id]}:{port_dict[recipient_id]}", message)
     end = time.time()
     elapsed_time = end - start
