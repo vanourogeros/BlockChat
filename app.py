@@ -21,6 +21,7 @@ TOTAL_NODES = int(os.getenv("TOTAL_NODES"))
 CAPACITY = int(os.getenv("CAPACITY"))
 INITIAL_COINS = int(os.getenv("INITIAL_COINS"))  # 1000
 PRINT_TRANS = int(os.getenv("PRINT_TRANS"))  # for printing
+RUN_DRIVER = int(os.getenv("RUN_DRIVER"))  # for executing driver
 
 app = Flask('BlockChat')
 
@@ -79,10 +80,11 @@ def broadcast_network_blockchain():
     give_coins_to_everyone()
 
     # run script
-    script_path = './driver.py'
-    address = f"{wallet.ip_address}:{wallet.port}"
-    wallet_id = str(wallet.id)
-    process = subprocess.Popen(['python3', script_path, wallet_id, address])
+    if RUN_DRIVER == 1:
+        script_path = './driver.py'
+        address = f"{wallet.ip_address}:{wallet.port}"
+        wallet_id = str(wallet.id)
+        process = subprocess.Popen(['python3', script_path, wallet_id, address])
 
 
 def give_coins_to_everyone():
@@ -208,7 +210,7 @@ def receive_transaction():
 
     # run script
     global flag
-    if flag and not bootstrap:
+    if (RUN_DRIVER == 1) and flag and not bootstrap:
         flag = False
         script_path = './driver.py'
         address = f"{wallet.ip_address}:{wallet.port}"
