@@ -21,6 +21,9 @@ BOOTSTRAP_IP = os.getenv("BOOTSTRAP_IP")  # 127.0.0.1
 BOOTSTRAP_PORT = int(os.getenv("BOOTSTRAP_PORT"))  # 5000
 INITIAL_COINS = int(os.getenv("INITIAL_COINS"))  # 1000
 PRINT_TRANS = int(os.getenv("PRINT_TRANS")) # for printing
+UNFAIR = int(os.getenv("UNFAIR"))
+
+INITIAL_STAKE = 5.0
 
 class Wallet:
 
@@ -30,7 +33,7 @@ class Wallet:
         self.address = f"{ip_address}:{port}"
         self.bootstrap = bootstrap
         self.balance = 0.0
-        self.stake = 0.0
+        self.stake = INITIAL_STAKE if not (UNFAIR and self.bootstrap) else 100.0
         self.nonce = 0  # counter for the number of transactions
         self.private_key, self.public_key = self.generate_wallet()
 
@@ -74,7 +77,7 @@ class Wallet:
             self.blockchain_state[self.address] = {"public_key": self.public_key,
                                                    "id": self.id,
                                                    "balance": 0.0,
-                                                   "stake": 0.0}
+                                                   "stake": INITIAL_STAKE if not UNFAIR else 100.0} # Initial stake is 5 coins, and 100 for the fairness experiment
 
             self.create_genesis_block()
         else:
@@ -175,8 +178,7 @@ class Wallet:
         self.blockchain_state[address] = {"public_key": public_key,
                                           "id": self.given_id,
                                           "balance": 0.0,
-                                          "stake": 0.0}
-
+                                          "stake": INITIAL_STAKE}
         return
 
     @staticmethod
@@ -187,6 +189,11 @@ class Wallet:
         return transaction
 
     def broadcast_transaction(self, transaction: Transaction) -> bool:
+        # Check if the sender has enough balance to send the transaction
+        amount = transaction.amount * 1.03 if transaction.type_of_transaction == "coins" else len(transaction.message)
+        if self.balance < amount + self.stake:
+            print(f"Insufficient balance. You have {self.balance} coins. Requested amount: {amount} coins")
+            return False
         # Increment the nonce of the wallet to keep track of the number of transactions
         # and prevent replay attacks/double spending
         self.nonce += 1
@@ -237,6 +244,7 @@ class Wallet:
            with a receiver address of '0' 
         """
         if amount > self.balance:
+            print(f"Insufficient balance. You have {self.balance} coins. Requested stake: {amount} coins")
             return False
 
         transaction = self.create_transaction(sender_address=self.address,
@@ -247,6 +255,7 @@ class Wallet:
                                               nonce=self.nonce)
         if self.broadcast_transaction(transaction):
             return True
+        print("Error: Transaction was not broadcasted.")
         return False
 
     def mine_block(self) -> bool:
