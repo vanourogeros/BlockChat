@@ -23,7 +23,7 @@ INITIAL_COINS = int(os.getenv("INITIAL_COINS"))  # 1000
 PRINT_TRANS = int(os.getenv("PRINT_TRANS")) # for printing
 UNFAIR = int(os.getenv("UNFAIR"))
 
-INITIAL_STAKE = 5.0
+INITIAL_STAKE = 10.0
 
 class Wallet:
 
@@ -62,6 +62,8 @@ class Wallet:
         # event that is set whenever a block is added to the chain,
         # in order to check if out of order blocks can now be added
         self.received_block = threading.Event()
+
+        self.nonce_sets = {}  # nonce sets for each node
 
         # for debugging purposes
         self.transaction_history = []
@@ -189,11 +191,6 @@ class Wallet:
         return transaction
 
     def broadcast_transaction(self, transaction: Transaction) -> bool:
-        # Check if the sender has enough balance to send the transaction
-        amount = transaction.amount * 1.03 if transaction.type_of_transaction == "coins" else len(transaction.message)
-        if self.balance < amount + self.stake:
-            print(f"Insufficient balance. You have {self.balance} coins. Requested amount: {amount} coins")
-            return False
         # Increment the nonce of the wallet to keep track of the number of transactions
         # and prevent replay attacks/double spending
         self.nonce += 1
@@ -220,6 +217,8 @@ class Wallet:
                 return False
 
         self.total_lock.acquire()
+        
+        self.nonce_sets[transaction.sender_address].add(self.nonce)
 
         # If, before we add our own transaction to pending list, we receive it from a block, it will be in missing list
         # Then, do not process it, just return.

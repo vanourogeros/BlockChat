@@ -44,6 +44,8 @@ def broadcast_network_blockchain():
     wallet.total_lock.acquire()
 
     for node in wallet.blockchain_state.keys():
+        wallet.nonce_sets[node] = set()
+
         if node == wallet.address:
             continue  # We don't want to send the blockchain to the bootstrap (ourselves)
 
@@ -189,6 +191,12 @@ def receive_transaction():
         wallet.total_lock.release()
         return jsonify({"message": "Transaction already processed from previous block"}), 200
 
+    if transaction.nonce in wallet.nonce_sets[transaction.sender_address]:
+        wallet.total_lock.release()
+        return jsonify({"message": "Transaction nonce encountered before"}), 400
+    else:
+        wallet.nonce_sets[transaction.sender_address].add(transaction.nonce)
+
     if not verify_trans(transaction):
         wallet.transactions_rejected[transaction.transaction_id] = transaction
         wallet.total_lock.release()
@@ -249,6 +257,7 @@ def receive_block():
                     del wallet.transactions_rejected[trans_object.transaction_id]
                     continue
                 else:
+                    wallet.nonce_sets[trans_object.sender_address].add(trans_object.nonce)
                     wallet.transactions_missing[trans_object.transaction_id] = trans_object
                     continue
         except Exception:
@@ -367,22 +376,21 @@ def missing_transactions():
     return jsonify(transactions_list), 200
 
 
-if PRINT_TRANS == 1:
-    @app.route('/api/print_block_lengths', methods=['GET'])
-    def print_block_lengths():
-        file_path = f"{wallet.id}.txt"
-        with open(file_path, 'w') as file:
-            file.write(f"Blockchain length: {len(wallet.blockchain.chain)}")
-            for block in wallet.blockchain.chain:
-                if len(block.transactions) != CAPACITY:
-                    file.write(f"Block length: {len(block.transactions)}")
+@app.route('/api/print_block_lengths', methods=['GET'])
+def print_block_lengths():
+    file_path = f"{wallet.id}.txt"
+    with open(file_path, 'w') as file:
+        file.write(f"Blockchain length: {len(wallet.blockchain.chain)}")
+        for block in wallet.blockchain.chain:
+            if len(block.transactions) != CAPACITY:
+                file.write(f"Block length: {len(block.transactions)}")
 
-            for block in wallet.blockchain.chain:
-                file.write(f"\n\nBLOCK {block.index}\n")
-                for transaction in block.transactions:
-                    file.write(f"{transaction.sender_address} - {transaction.nonce}\n")
-                file.write("\n")
-            return jsonify({"message": "All good"}), 200
+        for block in wallet.blockchain.chain:
+            file.write(f"\n\nBLOCK {block.index}\n")
+            for transaction in block.transactions:
+                file.write(f"{transaction.sender_address} - {transaction.nonce}\n")
+            file.write("\n")
+        return jsonify({"message": "All good"}), 200
 
 if bootstrap:
     broadcast_thread = threading.Thread(target=broadcast_network_blockchain).start()
@@ -418,6 +426,10 @@ if not bootstrap:
         wallet.blockchain_state = data
         wallet.blockchain_state_hard = deepcopy(wallet.blockchain_state)
         wallet.total_lock.release()
+
+        for node in wallet.blockchain_state.keys():
+            wallet.nonce_sets[node] = set()
+
         return jsonify({'message': 'State received and updated successfully'}), 200
 
 if __name__ == '__main__':
