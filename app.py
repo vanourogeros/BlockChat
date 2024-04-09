@@ -20,7 +20,7 @@ BOOTSTRAP_PORT = int(os.getenv("BOOTSTRAP_PORT"))  # 5000
 TOTAL_NODES = int(os.getenv("TOTAL_NODES"))
 CAPACITY = int(os.getenv("CAPACITY"))
 INITIAL_COINS = int(os.getenv("INITIAL_COINS"))  # 1000
-PRINT_TRANS = int(os.getenv("PRINT_TRANS")) # for printing
+PRINT_TRANS = int(os.getenv("PRINT_TRANS"))  # for printing
 
 app = Flask('BlockChat')
 
@@ -258,7 +258,7 @@ def receive_block():
     block = Block(data['index'], data['timestamp'], transactions, data['validator'], data['previous_hash'])
 
     # If a block has been received out of order, wait until the previous block has been added.
-    # First, save the current pending list, before releasing the lock
+    # First, save the current pending list & the current soft-state, before releasing the lock
     current_pending = deepcopy(wallet.transactions_pending)
     current_soft_state = deepcopy(wallet.blockchain_state)
     while data['index'] != len(wallet.blockchain.chain):
@@ -283,7 +283,7 @@ def receive_block():
     key_validator = None
     for key, value in wallet.blockchain_state.items():
         if value['id'] == validator:
-            if PRINT_TRANS == 1 :
+            if PRINT_TRANS == 1:
                 file_path = f"{wallet.id}-trans.txt"
                 with open(file_path, 'a') as file:
                     file.write(f"{key} is given {block.calculate_reward()}\n")
@@ -367,22 +367,22 @@ def missing_transactions():
     return jsonify(transactions_list), 200
 
 
-@app.route('/api/print_block_lengths', methods=['GET'])
-def print_block_lengths():
-    file_path = f"{wallet.id}.txt"
-    with open(file_path, 'w') as file:
-        file.write(f"Blockchain length: {len(wallet.blockchain.chain)}")
-        for block in wallet.blockchain.chain:
-            if len(block.transactions) != CAPACITY:
-                file.write(f"Block length: {len(block.transactions)}")
+if PRINT_TRANS == 1:
+    @app.route('/api/print_block_lengths', methods=['GET'])
+    def print_block_lengths():
+        file_path = f"{wallet.id}.txt"
+        with open(file_path, 'w') as file:
+            file.write(f"Blockchain length: {len(wallet.blockchain.chain)}")
+            for block in wallet.blockchain.chain:
+                if len(block.transactions) != CAPACITY:
+                    file.write(f"Block length: {len(block.transactions)}")
 
-        for block in wallet.blockchain.chain:
-            file.write(f"\n\nBLOCK {block.index}\n")
-            for transaction in block.transactions:
-                file.write(f"{transaction.sender_address} - {transaction.nonce}\n")
-            file.write("\n")
-        return jsonify({"message": "All good"}), 200
-
+            for block in wallet.blockchain.chain:
+                file.write(f"\n\nBLOCK {block.index}\n")
+                for transaction in block.transactions:
+                    file.write(f"{transaction.sender_address} - {transaction.nonce}\n")
+                file.write("\n")
+            return jsonify({"message": "All good"}), 200
 
 if bootstrap:
     broadcast_thread = threading.Thread(target=broadcast_network_blockchain).start()
