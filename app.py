@@ -239,7 +239,7 @@ def receive_block():
         # Else, check if it has been rejected. If yes, remove it from the rejected list (validator forces acceptance).
         # If not, add it to missing transactions (have not received it yet)
         trans_object = deserialize_trans(transaction)
-        if not verify_trans(trans_object):
+        if trans_object.sender_address != '0' and not verify_trans(trans_object):
             wallet.total_lock.release()
             return jsonify({"message": "Block contained invalid transactions"}), 400
         transactions.append(trans_object)
